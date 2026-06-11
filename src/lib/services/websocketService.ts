@@ -246,7 +246,7 @@ class WebSocketService {
     // Check if we should auto-connect (skip on excluded pages)
     if (typeof window !== 'undefined') {
       const pathname = window.location.pathname;
-      const wsExcludedPaths = ['/errors', '/config', '/auth', '/wiki', '/login'];
+      const wsExcludedPaths = ['/errors', '/auth', '/wiki', '/login'];
       const shouldConnect = !wsExcludedPaths.some(path => pathname.startsWith(path));
 
       if (!shouldConnect) {
@@ -287,7 +287,7 @@ class WebSocketService {
     // Check if we should skip on excluded pages
     if (typeof window !== 'undefined') {
       const pathname = window.location.pathname;
-      const wsExcludedPaths = ['/errors', '/config', '/auth', '/wiki', '/login'];
+      const wsExcludedPaths = ['/errors', '/auth', '/wiki', '/login'];
       const shouldConnect = !wsExcludedPaths.some(path => pathname.startsWith(path));
 
       if (!shouldConnect) {

@@ -117,6 +117,11 @@ export default function SymbolConfigForm({ onSave, currentConfig }: SymbolConfig
 
   const [config, setConfig] = useState<Config>(getInitialConfig());
 
+  // Re-sync local state when the parent config changes (e.g. after autoCoins applies symbols)
+  useEffect(() => {
+    setConfig(getInitialConfig());
+  }, [currentConfig]);
+
   const [selectedSymbol, setSelectedSymbol] = useState<string>('');
   const [newSymbol, setNewSymbol] = useState<string>('');
   const [showApiSecret, setShowApiSecret] = useState(false);

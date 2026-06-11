@@ -168,14 +168,16 @@ export default function AutoCoinsPanel({
 
         if (!response.ok) throw new Error('Failed to blacklist');
 
+        const updatedBlacklist = [...localBlacklist, symbol];
         setSymbols((prev) => prev.filter((s) => s.symbol !== symbol));
-        setLocalBlacklist((prev) => [...prev, symbol]);
+        setLocalBlacklist(updatedBlacklist);
+        onUpdateConfig('global.autoCoins.blacklistedSymbols', updatedBlacklist);
         toast.success(`Blacklisted ${symbol}`);
       } catch (err: any) {
         toast.error(`Failed to blacklist ${symbol}: ${err.message}`);
       }
     },
-    [],
+    [localBlacklist, onUpdateConfig],
   );
 
   const handleUnblacklist = useCallback(
@@ -189,13 +191,15 @@ export default function AutoCoinsPanel({
 
         if (!response.ok) throw new Error('Failed to unblacklist');
 
-        setLocalBlacklist((prev) => prev.filter((s) => s !== symbol));
+        const updatedBlacklist = localBlacklist.filter((s) => s !== symbol);
+        setLocalBlacklist(updatedBlacklist);
+        onUpdateConfig('global.autoCoins.blacklistedSymbols', updatedBlacklist);
         toast.success(`Removed ${symbol} from blacklist`);
       } catch (err: any) {
         toast.error(`Failed to unblacklist ${symbol}: ${err.message}`);
       }
     },
-    [],
+    [localBlacklist, onUpdateConfig],
   );
 
   // -----------------------------------------------------------------------

@@ -72,7 +72,7 @@ export default function ConfigPage() {
             leverage: existing.leverage ?? coin.recommendedLeverage,
           };
         } else {
-          // Create new config entry from recommendations
+          // Create new config entry from recommendations (mirrors autoCoinsService.applyToConfig)
           newSymbols[coin.symbol] = {
             longVolumeThresholdUSDT: coin.recommendedThreshold,
             shortVolumeThresholdUSDT: coin.recommendedThreshold,
@@ -90,6 +90,10 @@ export default function ConfigPage() {
             vwapTimeframe: '5m',
             vwapLookback: 200,
             useThreshold: false,
+            adaptiveParams: { enabled: true },
+            cvdFilter: { enabled: true, neutralThreshold: 0.20, minTradeCount: 10, candleDurationMs: 60000 },
+            fundingFilter: { enabled: true, extremeThreshold: 0.0005, cacheMs: 60000 },
+            cascadeDetector: { enabled: true, windowMs: 60000, minClusterSize: 3, acceleratingThresholdMs: 5000, peakThresholdMs: 2000, exhaustionMinMs: 8000, oiCheckEnabled: true },
           };
         }
       }
@@ -172,8 +176,16 @@ export default function ConfigPage() {
           <AutoCoinsPanel
             config={config}
             onUpdateConfig={(path, value) => {
-              // This is a simplified handler — full config management is done via SymbolConfigForm
-              // The AutoCoinsPanel uses its own API calls for refresh/blacklist
+              // Deep-set a dot-separated path on the config and save it
+              const parts = path.split('.');
+              const newConfig = JSON.parse(JSON.stringify(config)) as typeof config;
+              let obj: any = newConfig;
+              for (let i = 0; i < parts.length - 1; i++) {
+                if (!obj[parts[i]]) obj[parts[i]] = {};
+                obj = obj[parts[i]];
+              }
+              obj[parts[parts.length - 1]] = value;
+              updateConfig(newConfig);
             }}
             onApplySymbols={handleApplySymbols}
           />
