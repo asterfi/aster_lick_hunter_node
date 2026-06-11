@@ -6,6 +6,21 @@ const path = require('path');
 const axios = require('axios');
 const crypto = require('crypto');
 const readline = require('readline');
+const { ethers, TypedDataEncoder } = require('ethers');
+
+// Command-line flags
+const ARGS = process.argv.slice(2);
+const FLAG_CONTINUOUS = ARGS.includes('--continuous');
+const FLAG_JSON = ARGS.includes('--json');
+const FLAG_CONTINUOUS_INDEX = ARGS.indexOf('--continuous');
+const FLAG_INTERVAL_INDEX = ARGS.indexOf('--interval');
+const FLAG_IMPROVEMENT_INDEX = ARGS.indexOf('--improvement-threshold');
+const CONTINUOUS_INTERVAL_MINUTES = FLAG_INTERVAL_INDEX >= 0 && ARGS[FLAG_INTERVAL_INDEX + 1]
+  ? parseInt(ARGS[FLAG_INTERVAL_INDEX + 1], 10)
+  : 60;
+const IMPROVEMENT_THRESHOLD = FLAG_IMPROVEMENT_INDEX >= 0 && ARGS[FLAG_IMPROVEMENT_INDEX + 1]
+  ? parseFloat(ARGS[FLAG_IMPROVEMENT_INDEX + 1])
+  : 5.0; // percent
 
 // API request configuration
 const API_TIMEOUT_MS = 10000; // 10 second timeout
@@ -128,30 +143,97 @@ function loadConfig() {
 
 const config = loadConfig();
 
-// API helper functions for balance fetching
+// ─── V3 EIP-712 (ethers) and V1 HMAC-SHA256 dual auth ────────
+
+// Nonce state for V3 (microsecond precision with sequence counter)
+let _v3LastMs = 0;
+let _v3NonceSeq = 0;
+
+function getV3Nonce() {
+  const nowMs = Date.now();
+  if (nowMs === _v3LastMs) {
+    _v3NonceSeq++;
+  } else {
+    _v3LastMs = nowMs;
+    _v3NonceSeq = 0;
+  }
+  return String(BigInt(nowMs) * BigInt(1000n) + BigInt(_v3NonceSeq));
+}
+
+// EIP-712 domain (constant per Aster V3 spec)
+const EIP712_DOMAIN = {
+  name: 'AsterSignTransaction',
+  version: '1',
+  chainId: 1666,
+  verifyingContract: '0x0000000000000000000000000000000000000000',
+};
+
+const EIP712_TYPES = {
+  Message: [{ name: 'msg', type: 'string' }],
+};
+
+function isV3Credentials(credentials) {
+  return !!credentials.apiWalletKey;
+}
+
+function sortedParamString(params) {
+  return Object.keys(params)
+    .sort()
+    .map(k => `${k}=${params[k]}`)
+    .join('&');
+}
+
+function eip712SignSync(paramStr, privateKey) {
+  const digest = TypedDataEncoder.hash(EIP712_DOMAIN, EIP712_TYPES, { msg: paramStr });
+  const signingKey = new ethers.SigningKey(privateKey);
+  return signingKey.sign(digest).serialized;
+}
+
 function buildSignedQuery(params, credentials) {
-  const timestamp = Date.now();
-  const queryString = new URLSearchParams({
-    ...params,
-    timestamp,
-    recvWindow: 5000
-  }).toString();
+  if (isV3Credentials(credentials)) {
+    const nonce = getV3Nonce();
+    const finalParams = {
+      ...params,
+      nonce,
+      signer: credentials.apiWalletAddress,
+    };
+    const paramStr = sortedParamString(finalParams);
+    const signature = eip712SignSync(paramStr, credentials.apiWalletKey);
+    finalParams.signature = signature;
+    const sp = new URLSearchParams();
+    for (const [key, value] of Object.entries(finalParams)) {
+      if (value !== undefined && value !== null) {
+        sp.append(key, String(value));
+      }
+    }
+    return sp.toString();
+  } else {
+    // V1 HMAC-SHA256
+    const timestamp = Date.now();
+    const queryString = new URLSearchParams({
+      ...params,
+      timestamp,
+      recvWindow: 20000
+    }).toString();
+    const signature = crypto
+      .createHmac('sha256', credentials.secretKey)
+      .update(queryString)
+      .digest('hex');
+    return `${queryString}&signature=${signature}`;
+  }
+}
 
-  const signature = crypto
-    .createHmac('sha256', credentials.secretKey)
-    .update(queryString)
-    .digest('hex');
-
-  return `${queryString}&signature=${signature}`;
+function buildHeaders(credentials) {
+  return { 'X-MBX-APIKEY': credentials.apiKey || credentials.walletAddress || '' };
 }
 
 async function getAccountBalance(credentials) {
   try {
     const queryString = buildSignedQuery({}, credentials);
     const response = await axios.get(
-      `https://fapi.asterdex.com/fapi/v2/balance?${queryString}`,
+      `https://fapi.asterdex.com/fapi/v3/balance?${queryString}`,
       {
-        headers: { 'X-MBX-APIKEY': credentials.apiKey }
+        headers: buildHeaders(credentials)
       }
     );
 
@@ -162,7 +244,7 @@ async function getAccountBalance(credentials) {
       crossMargin: parseFloat(usdtBalance?.crossUnPnl || 0)
     };
   } catch (error) {
-    console.error('??? Failed to fetch balance:', error.response?.data || error.message);
+    console.error('❌ Failed to fetch balance:', error.response?.data || error.message);
     return { totalWalletBalance: 0, availableBalance: 0, crossMargin: 0 };
   }
 }
@@ -171,15 +253,15 @@ async function getAccountInfo(credentials) {
   try {
     const queryString = buildSignedQuery({}, credentials);
     const response = await axios.get(
-      `https://fapi.asterdex.com/fapi/v2/account?${queryString}`,
+      `https://fapi.asterdex.com/fapi/v3/account?${queryString}`,
       {
-        headers: { 'X-MBX-APIKEY': credentials.apiKey }
+        headers: buildHeaders(credentials)
       }
     );
 
     return response.data;
   } catch (error) {
-    console.error('??? Failed to fetch account info:', error.response?.data || error.message);
+    console.error('❌ Failed to fetch account info:', error.response?.data || error.message);
     return null;
   }
 }
@@ -192,15 +274,15 @@ async function getUserTrades(credentials, symbol, limit = 100, startTime = null,
 
     const queryString = buildSignedQuery(params, credentials);
     const response = await axios.get(
-      `https://fapi.asterdex.com/fapi/v1/userTrades?${queryString}`,
+      `https://fapi.asterdex.com/fapi/v3/userTrades?${queryString}`,
       {
-        headers: { 'X-MBX-APIKEY': credentials.apiKey }
+        headers: buildHeaders(credentials)
       }
     );
 
     return response.data;
   } catch (error) {
-    console.error(`??? Failed to fetch trade history for ${symbol}:`, error.response?.data || error.message);
+    console.error(`❌ Failed to fetch trade history for ${symbol}:`, error.response?.data || error.message);
     return [];
   }
 }
@@ -209,9 +291,9 @@ async function getCurrentPositions(credentials) {
   try {
     const queryString = buildSignedQuery({}, credentials);
     const response = await axios.get(
-      `https://fapi.asterdex.com/fapi/v2/positionRisk?${queryString}`,
+      `https://fapi.asterdex.com/fapi/v3/positionRisk?${queryString}`,
       {
-        headers: { 'X-MBX-APIKEY': credentials.apiKey }
+        headers: buildHeaders(credentials)
       }
     );
 
@@ -219,7 +301,7 @@ async function getCurrentPositions(credentials) {
     const activePositions = response.data.filter(pos => parseFloat(pos.positionAmt) !== 0);
     return activePositions;
   } catch (error) {
-    console.error('??? Failed to fetch positions:', error.response?.data || error.message);
+    console.error('❌ Failed to fetch positions:', error.response?.data || error.message);
     return [];
   }
 }
@@ -252,7 +334,7 @@ async function retryWithTimeout(fn, retries = MAX_RETRIES, timeoutMs = API_TIMEO
 async function _getHistoricalPrices(symbol, interval = '1m', limit = 1000) {
   try {
     const response = await axios.get(
-      `https://fapi.asterdex.com/fapi/v1/klines?symbol=${symbol}&interval=${interval}&limit=${limit}`
+      `https://fapi.asterdex.com/fapi/v3/klines?symbol=${symbol}&interval=${interval}&limit=${limit}`
     );
 
     // Convert kline data to price points
@@ -300,7 +382,7 @@ async function getCachedHistoricalPrices(symbol, interval = '1m', totalCandles =
     let response;
     try {
       response = await retryWithTimeout(async (signal) => {
-        return await axios.get(`https://fapi.asterdex.com/fapi/v1/klines?${params.toString()}`, {
+        return await axios.get(`https://fapi.asterdex.com/fapi/v3/klines?${params.toString()}`, {
           timeout: API_TIMEOUT_MS,
           signal
         });
@@ -2195,9 +2277,8 @@ function optimizeCapitalAllocation(accountInfo, recommendations, symbolConfigs =
 }
 
 // Generate optimization summary with actionable recommendations
-function generateOptimizationSummary(recommendations, capitalOptimization, optimizedConfig, recommendedGlobalMax) {
-  console.log('???? OPTIMIZATION SUMMARY');
-  console.log('======================\n');
+function generateOptimizationSummary(recommendations, capitalOptimization, optimizedConfig, recommendedGlobalMax, opts = {}) {
+  const { jsonOnly = false, previousResults = null } = opts;
 
   // Calculate total improvements
   const totalDailyImprovement = recommendations.reduce((sum, _rec) => sum + _rec.totalDailyImprovement, 0);
@@ -2207,54 +2288,56 @@ function generateOptimizationSummary(recommendations, capitalOptimization, optim
     ? (totalDailyImprovement / Math.abs(totalCurrentDaily)) * 100
     : null;
 
-  console.log('???? PERFORMANCE SUMMARY:');
-  console.log(`   Current Daily P&L: $${totalCurrentDaily.toFixed(2)}`);
-  console.log(`   Optimized Daily P&L: $${totalOptimizedDaily.toFixed(2)}`);
-  const improvementText = improvementPercent === null
-    ? 'n/a (baseline ??? 0)'
-    : `${improvementPercent.toFixed(1)}%`;
-  console.log(`   Total Daily Improvement: +$${totalDailyImprovement.toFixed(2)} (+${improvementText})`);
-  console.log(`   Monthly Improvement: +$${(totalDailyImprovement * 30).toFixed(2)}\n`);
+  if (!jsonOnly) {
+    console.log('📊 PERFORMANCE SUMMARY:');
+    console.log(`   Current Daily P&L: $${totalCurrentDaily.toFixed(2)}`);
+    console.log(`   Optimized Daily P&L: $${totalOptimizedDaily.toFixed(2)}`);
+    const improvementText = improvementPercent === null
+      ? 'n/a (baseline ≈ 0)'
+      : `${improvementPercent.toFixed(1)}%`;
+    console.log(`   Total Daily Improvement: +$${totalDailyImprovement.toFixed(2)} (+${improvementText})`);
+    console.log(`   Monthly Improvement: +$${(totalDailyImprovement * 30).toFixed(2)}\n`);
 
-  // Threshold recommendations
-  console.log('???? RECOMMENDED THRESHOLD CHANGES:');
-  recommendations.forEach(_rec => {
-    if (_rec.optimizedLong !== _rec.currentLong || _rec.optimizedShort !== _rec.currentShort) {
-      console.log(`   ${_rec.symbol}:`);
-      if (_rec.optimizedLong !== _rec.currentLong) {
-        console.log(`      LONG: $${formatLargeNumber(_rec.currentLong)} ??? $${formatLargeNumber(_rec.optimizedLong)} (+$${_rec.longImprovement.toFixed(2)}/day)`);
+    // Threshold recommendations
+    console.log('🎯 RECOMMENDED THRESHOLD CHANGES:');
+    recommendations.forEach(_rec => {
+      if (_rec.optimizedLong !== _rec.currentLong || _rec.optimizedShort !== _rec.currentShort) {
+        console.log(`   ${_rec.symbol}:`);
+        if (_rec.optimizedLong !== _rec.currentLong) {
+          console.log(`      LONG: $${formatLargeNumber(_rec.currentLong)} → $${formatLargeNumber(_rec.optimizedLong)} (+$${_rec.longImprovement.toFixed(2)}/day)`);
+        }
+        if (_rec.optimizedShort !== _rec.currentShort) {
+          console.log(`      SHORT: $${formatLargeNumber(_rec.currentShort)} → $${formatLargeNumber(_rec.optimizedShort)} (+$${_rec.shortImprovement.toFixed(2)}/day)`);
+        }
+        console.log(`      Trade Size (L/S): $${_rec.currentLongTradeSize.toFixed(2)} → $${_rec.optimizedLongTradeSize.toFixed(2)} / $${_rec.currentShortTradeSize.toFixed(2)} → $${_rec.optimizedShortTradeSize.toFixed(2)}`);
+        console.log(`      TP/SL: ${_rec.currentTp.toFixed(2)}%/${_rec.currentSl.toFixed(2)}% → ${_rec.optimizedTp.toFixed(2)}%/${_rec.optimizedSl.toFixed(2)}%`);
+        console.log(`      Leverage: ${_rec.currentLeverage.toFixed(2)}x → ${_rec.optimizedLeverage.toFixed(2)}x`);
+        if (_rec.optimizedScore !== undefined) {
+          console.log(`      Score: ${_rec.optimizedScore.toFixed(2)} (PnL: ${formatWeightPercent(scoringWeights.percent.pnl)}, Sharpe: ${formatWeightPercent(scoringWeights.percent.sharpe)}, Drawdown: ${formatWeightPercent(scoringWeights.percent.drawdown)})`);
+        }
       }
-      if (_rec.optimizedShort !== _rec.currentShort) {
-        console.log(`      SHORT: $${formatLargeNumber(_rec.currentShort)} ??? $${formatLargeNumber(_rec.optimizedShort)} (+$${_rec.shortImprovement.toFixed(2)}/day)`);
-      }
-      console.log(`      Trade Size (L/S): $${_rec.currentLongTradeSize.toFixed(2)} ??? $${_rec.optimizedLongTradeSize.toFixed(2)} / $${_rec.currentShortTradeSize.toFixed(2)} ??? $${_rec.optimizedShortTradeSize.toFixed(2)}`);
-      console.log(`      TP/SL: ${_rec.currentTp.toFixed(2)}%/${_rec.currentSl.toFixed(2)}% ??? ${_rec.optimizedTp.toFixed(2)}%/${_rec.optimizedSl.toFixed(2)}%`);
-      console.log(`      Leverage: ${_rec.currentLeverage.toFixed(2)}x ??? ${_rec.optimizedLeverage.toFixed(2)}x`);
-      if (_rec.optimizedScore !== undefined) {
-        console.log(`      Score: ${_rec.optimizedScore.toFixed(2)} (PnL: ${formatWeightPercent(scoringWeights.percent.pnl)}, Sharpe: ${formatWeightPercent(scoringWeights.percent.sharpe)}, Drawdown: ${formatWeightPercent(scoringWeights.percent.drawdown)})`);
-      }
-    }
-  });
+    });
 
-  console.log();
-
-  // Capital allocation recommendations
-  if (capitalOptimization.isOverallocated) {
-    console.log('??????  CAPITAL ALLOCATION WARNING:');
-    console.log(`   Current: $${formatLargeNumber(capitalOptimization.currentAllocation)}`);
-    console.log(`   Safe Max: $${formatLargeNumber(capitalOptimization.maxSafeAllocation)}`);
-    console.log(`   Overallocated by: $${formatLargeNumber(capitalOptimization.currentAllocation - capitalOptimization.maxSafeAllocation)}\n`);
-  }
-
-  if (recommendedGlobalMax) {
-    const currentGlobal = config.global?.maxOpenPositions;
-    console.log('???? Global Position Capacity:');
-    console.log(`   Current maxOpenPositions: ${currentGlobal ?? 'n/a'}`);
-    console.log(`   Recommended maxOpenPositions: ${recommendedGlobalMax}`);
     console.log();
+
+    // Capital allocation recommendations
+    if (capitalOptimization.isOverallocated) {
+      console.log('⚠️  CAPITAL ALLOCATION WARNING:');
+      console.log(`   Current: $${formatLargeNumber(capitalOptimization.currentAllocation)}`);
+      console.log(`   Safe Max: $${formatLargeNumber(capitalOptimization.maxSafeAllocation)}`);
+      console.log(`   Overallocated by: $${formatLargeNumber(capitalOptimization.currentAllocation - capitalOptimization.maxSafeAllocation)}\n`);
+    }
+
+    if (recommendedGlobalMax) {
+      const currentGlobal = config.global?.maxOpenPositions;
+      console.log('🌐 Global Position Capacity:');
+      console.log(`   Current maxOpenPositions: ${currentGlobal ?? 'n/a'}`);
+      console.log(`   Recommended maxOpenPositions: ${recommendedGlobalMax}`);
+      console.log();
+    }
   }
 
-  // Export recommendations as JSON
+  // Build JSON export data regardless (used for --json output and file)
   const exportData = {
     timestamp: new Date().toISOString(),
     summary: {
@@ -2357,16 +2440,19 @@ function generateOptimizationSummary(recommendations, capitalOptimization, optim
     })),
     capitalAllocation: capitalOptimization,
     recommendedMaxOpenPositions: recommendedGlobalMax,
-    optimizedConfig
+    optimizedConfig,
+    symbolsOptimized: recommendations.length,
+    duration: Date.now()
   };
 
-  // Write to JSON file
-  fs.writeFileSync(
-    path.join(__dirname, 'optimization-results.json'),
-    JSON.stringify(exportData, null, 2)
-  );
-
-  console.log('???? Results saved to: optimization-results.json\n');
+  // Write to JSON file (always, for record-keeping)
+  if (!jsonOnly) {
+    fs.writeFileSync(
+      path.join(__dirname, 'optimization-results.json'),
+      JSON.stringify(exportData, null, 2)
+    );
+    console.log('📁 Results saved to: optimization-results.json\n');
+  }
 
   return exportData;
 }
@@ -2429,52 +2515,188 @@ async function maybeApplyOptimizedConfig(originalConfig, optimizedConfig, summar
   console.log('???o. config.user.json overwritten with optimized settings');
 }
 
-async function main() {
-  try {
-    const weightSummary = `${formatWeightPercent(scoringWeights.percent.pnl)} / ${formatWeightPercent(scoringWeights.percent.sharpe)} / ${formatWeightPercent(scoringWeights.percent.drawdown)}`;
-    const weightLabel = scoringWeights.isDefault ? ' (default)' : '';
-    console.log(`???? Using scoring weights (PnL / Sharpe / Drawdown): ${weightSummary}${weightLabel}\n`);
+async function runOptimizationCycle(cycleNumber, previousResults) {
+  const startTime = Date.now();
+  const weightSummary = `${formatWeightPercent(scoringWeights.percent.pnl)} / ${formatWeightPercent(scoringWeights.percent.sharpe)} / ${formatWeightPercent(scoringWeights.percent.drawdown)}`;
+  const weightLabel = scoringWeights.isDefault ? ' (default)' : '';
 
-    console.log('???? Fetching complete account snapshot...\n');
-    const [balance, accountInfo, positions] = await Promise.all([
-      getAccountBalance(config.api),
-      getAccountInfo(config.api),
-      getCurrentPositions(config.api)
-    ]);
+  if (!FLAG_JSON) {
+    if (cycleNumber > 0 && FLAG_CONTINUOUS) {
+      console.log(`\n========== CYCLE ${cycleNumber} ==========`);
+    }
+    console.log(`🧪 Using scoring weights (PnL / Sharpe / Drawdown): ${weightSummary}${weightLabel}\n`);
+  }
 
-    // Core analyses
-    const _avgGap = analyzePriceDataCoverage();
-    const capitalInfo = analyzeCapitalAllocation(balance, accountInfo, positions);
-    analyzeLiquidationCascades();
-    analyzeCurrentConfig();
+  if (!FLAG_JSON) {
+    console.log('📡 Fetching complete account snapshot...\n');
+  }
+
+  // Gracefully handle missing/partial API credentials — skip live queries if none configured
+  const hasApiCredentials = config.api && (
+    (config.api.apiKey && config.api.secretKey) || config.api.apiWalletKey
+  );
+
+  let balance = { totalWalletBalance: 0, availableBalance: 0, crossMargin: 0 };
+  let accountInfo = null;
+  let positions = [];
+
+  if (hasApiCredentials) {
+    try {
+      [balance, accountInfo, positions] = await Promise.all([
+        getAccountBalance(config.api),
+        getAccountInfo(config.api),
+        getCurrentPositions(config.api)
+      ]);
+    } catch (e) {
+      if (!FLAG_JSON) console.log('⚠️  Live account queries failed, running backtest-only mode:', e.message);
+    }
+  } else if (!FLAG_JSON) {
+    console.log('⚠️  No API credentials configured. Running backtest-only mode from SQLite data.\n');
+  }
+
+  // Core analyses
+  const _avgGap = analyzePriceDataCoverage();
+  const capitalInfo = analyzeCapitalAllocation(balance, accountInfo, positions);
+  analyzeLiquidationCascades();
+  analyzeCurrentConfig();
+  if (hasApiCredentials) {
     await analyzeRealTradingHistory(config.api);
-    optimizeThresholds();
-    rankSymbolProfitability();
+  }
+  optimizeThresholds();
+  rankSymbolProfitability();
 
-    // Generate recommendations with backtest
-    // Use CALCULATED TOTAL for optimal capital allocation
-    const deployableCapital = capitalInfo.calculatedTotal || parseFloat(accountInfo?.totalWalletBalance ?? 0);
-    const { recommendations, optimizedConfig, recommendedGlobalMax } = await generateRecommendations(deployableCapital);
+  // Generate recommendations with backtest
+  const deployableCapital = capitalInfo.calculatedTotal || parseFloat(accountInfo?.totalWalletBalance ?? 0) || 500;
+  const { recommendations, optimizedConfig, recommendedGlobalMax } = await generateRecommendations(deployableCapital);
 
-    // Optimize capital allocation
-    const capitalOptimization = optimizeCapitalAllocation(accountInfo, recommendations, optimizedConfig.symbols);
+  // Optimize capital allocation
+  const capitalOptimization = optimizeCapitalAllocation(accountInfo, recommendations, optimizedConfig.symbols);
 
-    // Generate final summary
-    const optimizationResults = generateOptimizationSummary(recommendations, capitalOptimization, optimizedConfig, recommendedGlobalMax);
+  // Generate final summary
+  const opts = {};
+  if (FLAG_JSON) opts.jsonOnly = true;
+  if (previousResults) opts.previousResults = previousResults;
+  const optimizationResults = generateOptimizationSummary(recommendations, capitalOptimization, optimizedConfig, recommendedGlobalMax, opts);
 
+  if (FLAG_JSON) {
+    // Pure JSON output to stdout
+    const totalValue = parseFloat(accountInfo?.totalMarginBalance || balance.totalWalletBalance || 0);
+    optimizationResults.summary.duration = Date.now() - startTime;
+    optimizationResults.summary.symbolsOptimized = recommendations.length;
+    optimizationResults.summary.totalDailyImprovement = optimizationResults.summary.dailyImprovement;
+    console.log(JSON.stringify(optimizationResults, null, 2));
+  } else {
+    // Human-readable output
     await maybeApplyOptimizedConfig(config, optimizedConfig, optimizationResults.summary);
 
-    console.log('???? Optimization analysis complete!');
+    console.log('✅ Optimization analysis complete!');
     const totalValue = parseFloat(accountInfo?.totalMarginBalance || balance.totalWalletBalance || 0);
-    console.log(`???? Total account value: $${formatLargeNumber(totalValue)}`);
-    console.log('???? Strategy: Accumulate positions during cascades, profit on rebounds');
-    console.log('\n???? Review optimization-results.json for detailed recommendations and the fully optimized config snapshot');
+    console.log(`💰 Total account value: $${formatLargeNumber(totalValue)}`);
+    console.log('📈 Strategy: Accumulate positions during cascades, profit on rebounds');
+    console.log('\n📁 Review optimization-results.json for detailed recommendations and the fully optimized config snapshot');
+  }
 
+  return optimizationResults;
+}
+
+async function runContinuousMode() {
+  console.log('🔄 CONTINUOUS AUTO-OPTIMIZATION MODE');
+  console.log('====================================');
+  console.log(`Interval: ${CONTINUOUS_INTERVAL_MINUTES} minutes`);
+  console.log(`Improvement threshold: ${IMPROVEMENT_THRESHOLD}%`);
+  console.log('Press Ctrl+C to stop gracefully\n');
+
+  let previousResults = null;
+  let cycleNumber = 0;
+
+  // Handle graceful shutdown
+  let shuttingDown = false;
+  process.on('SIGINT', () => {
+    if (shuttingDown) {
+      console.log('\n⚠️  Force exit...');
+      process.exit(1);
+    }
+    shuttingDown = true;
+    console.log('\n\n🛑 Graceful shutdown requested. Finishing current cycle...');
+  });
+  process.on('SIGTERM', () => {
+    shuttingDown = true;
+    console.log('\n\n🛑 Graceful shutdown requested. Finishing current cycle...');
+  });
+
+  while (!shuttingDown) {
+    try {
+      const results = await runOptimizationCycle(cycleNumber, previousResults);
+
+      if (!shuttingDown && results) {
+        const currentImprovement = results.summary?.dailyImprovement || 0;
+        const previousImprovement = previousResults?.summary?.dailyImprovement || 0;
+
+        if (cycleNumber > 0 && previousResults) {
+          const pctChange = previousImprovement !== 0
+            ? ((currentImprovement - previousImprovement) / Math.abs(previousImprovement)) * 100
+            : currentImprovement > 0 ? 100 : 0;
+
+          console.log(`\n📊 Cycle ${cycleNumber} improvement change: ${pctChange >= 0 ? '+' : ''}${pctChange.toFixed(2)}% vs previous cycle`);
+
+          if (pctChange < IMPROVEMENT_THRESHOLD) {
+            console.log(`ℹ️  Improvement below threshold (${IMPROVEMENT_THRESHOLD}%). Will still apply if better.`);
+          }
+        }
+
+        previousResults = results;
+      }
+
+      cycleNumber++;
+
+      if (!shuttingDown) {
+        console.log(`\n⏳ Sleeping for ${CONTINUOUS_INTERVAL_MINUTES} minutes until next cycle...`);
+        console.log(`   Next run at: ${new Date(Date.now() + CONTINUOUS_INTERVAL_MINUTES * 60 * 1000).toLocaleString()}`);
+        console.log('   Press Ctrl+C to stop\n');
+
+        // Sleep in smaller chunks to allow early exit on SIGINT
+        const sleepChunk = 1000; // 1 second chunks
+        const totalSleepMs = CONTINUOUS_INTERVAL_MINUTES * 60 * 1000;
+        const chunks = Math.ceil(totalSleepMs / sleepChunk);
+        for (let i = 0; i < chunks && !shuttingDown; i++) {
+          await new Promise(resolve => setTimeout(resolve, sleepChunk));
+        }
+      }
+    } catch (error) {
+      console.error('❌ Error during optimization cycle:', error.message);
+      console.error(error.stack);
+      if (!shuttingDown) {
+        console.log(`\n⏳ Retrying in ${Math.max(1, CONTINUOUS_INTERVAL_MINUTES)} minutes...`);
+        await new Promise(resolve => setTimeout(resolve, Math.max(1, CONTINUOUS_INTERVAL_MINUTES) * 60 * 1000));
+      }
+    }
+  }
+
+  console.log('\n👋 Continuous optimization stopped gracefully.');
+  db.close();
+}
+
+async function main() {
+  try {
+    if (FLAG_CONTINUOUS) {
+      await runContinuousMode();
+    } else {
+      // Single run mode
+      const results = await runOptimizationCycle(0, null);
+
+      // In single --json mode, output was already handled by runOptimizationCycle
+      if (!FLAG_JSON) {
+        await maybeApplyOptimizedConfig(config, results?.optimizedConfig, results?.summary);
+        console.log('\n📁 Review optimization-results.json for detailed recommendations');
+      }
+    }
   } catch (error) {
-    console.error('??? Error:', error.message);
+    console.error('❌ Error:', error.message);
     console.error(error.stack);
   } finally {
-    db.close();
+    if (!FLAG_CONTINUOUS) {
+      db.close();
+    }
   }
 }
 
