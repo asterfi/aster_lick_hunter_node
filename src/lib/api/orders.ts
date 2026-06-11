@@ -79,7 +79,7 @@ export async function placeOrder(params: {
   console.log('[ORDER DEBUG] Form data being sent:', formData.toString());
 
   const axios = getRateLimitedAxios();
-  const response: AxiosResponse = await axios.post(`${BASE_URL}/fapi/v1/order`, formData, {
+  const response: AxiosResponse = await axios.post(`${BASE_URL}/fapi/v3/order`, formData, {
     headers: {
       'Content-Type': 'application/x-www-form-urlencoded',
       'X-MBX-APIKEY': credentials.apiKey
@@ -129,7 +129,7 @@ export async function cancelOrder(params: {
   const query = buildSignedQuery(cancelParams, credentials);
 
   const axios = getRateLimitedAxios();
-  const response: AxiosResponse = await axios.delete(`${BASE_URL}/fapi/v1/order?${query}`, {
+  const response: AxiosResponse = await axios.delete(`${BASE_URL}/fapi/v3/order?${query}`, {
     headers: {
       'X-MBX-APIKEY': credentials.apiKey
     }
@@ -145,7 +145,7 @@ export async function cancelAllOrders(symbol: string, credentials: ApiCredential
   const query = buildSignedQuery(params, credentials);
 
   const axios = getRateLimitedAxios();
-  const response: AxiosResponse = await axios.delete(`${BASE_URL}/fapi/v1/allOpenOrders?${query}`, {
+  const response: AxiosResponse = await axios.delete(`${BASE_URL}/fapi/v3/allOpenOrders?${query}`, {
     headers: {
       'X-MBX-APIKEY': credentials.apiKey
     }
@@ -165,7 +165,7 @@ export async function queryOrder(params: {
   const query = buildSignedQuery(queryParams, credentials);
 
   const axios = getRateLimitedAxios();
-  const response: AxiosResponse = await axios.get(`${BASE_URL}/fapi/v1/order?${query}`, {
+  const response: AxiosResponse = await axios.get(`${BASE_URL}/fapi/v3/order?${query}`, {
     headers: {
       'X-MBX-APIKEY': credentials.apiKey
     }
@@ -185,7 +185,7 @@ export async function getAllOrders(symbol: string, credentials: ApiCredentials, 
   const query = buildSignedQuery(params, credentials);
 
   const axios = getRateLimitedAxios();
-  const response: AxiosResponse = await axios.get(`${BASE_URL}/fapi/v1/allOrders?${query}`, {
+  const response: AxiosResponse = await axios.get(`${BASE_URL}/fapi/v3/allOrders?${query}`, {
     headers: {
       'X-MBX-APIKEY': credentials.apiKey
     }
@@ -202,7 +202,7 @@ export async function setLeverage(symbol: string, leverage: number, credentials:
   const formData = buildSignedForm(params, credentials);
 
   const axios = getRateLimitedAxios();
-  const response: AxiosResponse = await axios.post(`${BASE_URL}/fapi/v1/leverage`, formData, {
+  const response: AxiosResponse = await axios.post(`${BASE_URL}/fapi/v3/leverage`, formData, {
     headers: {
       'Content-Type': 'application/x-www-form-urlencoded',
       'X-MBX-APIKEY': credentials.apiKey
@@ -218,7 +218,7 @@ export async function getPositions(credentials: ApiCredentials): Promise<any[]> 
   const query = buildSignedQuery(params, credentials);
 
   const axios = getRateLimitedAxios();
-  const response: AxiosResponse = await axios.get(`${BASE_URL}/fapi/v2/positionRisk?${query}`, {
+  const response: AxiosResponse = await axios.get(`${BASE_URL}/fapi/v3/positionRisk?${query}`, {
     headers: {
       'X-MBX-APIKEY': credentials.apiKey
     }
@@ -250,7 +250,7 @@ export async function getUserTrades(
 
   const axios = getRateLimitedAxios();
   const response: AxiosResponse<Trade[]> = await axios.get(
-    `${BASE_URL}/fapi/v1/userTrades?${query}`,
+    `${BASE_URL}/fapi/v3/userTrades?${query}`,
     {
       headers: {
         'X-MBX-APIKEY': credentials.apiKey

@@ -36,7 +36,7 @@ export async function POST(_request: NextRequest) {
         context: {
           component: 'PositionManager',
           userAction: 'Placing protective orders',
-          metadata: { endpoint: '/fapi/v1/order', method: 'POST', statusCode: 429 }
+          metadata: { endpoint: '/fapi/v3/order', method: 'POST', statusCode: 429 }
         }
       },
       {
@@ -110,7 +110,7 @@ export async function POST(_request: NextRequest) {
           component: 'PositionManager',
           symbol: 'BNBUSDT',
           userAction: 'Placing take profit order',
-          metadata: { timeout: 10000, endpoint: '/fapi/v1/order' }
+          metadata: { timeout: 10000, endpoint: '/fapi/v3/order' }
         }
       },
       {

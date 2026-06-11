@@ -9,7 +9,7 @@ interface ExchangeSymbol {
 export async function GET() {
   try {
     // Fetch exchange info from Aster Finance
-    const response = await axios.get('https://fapi.asterdex.com/fapi/v1/exchangeInfo');
+    const response = await axios.get('https://fapi.asterdex.com/fapi/v3/exchangeInfo');
 
     const symbols: ExchangeSymbol[] = [];
 

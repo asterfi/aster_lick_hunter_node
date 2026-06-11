@@ -219,7 +219,7 @@ logWithTimestamp('PositionManager: Stopping...');
       'X-MBX-APIKEY': this.config.api.apiKey  // Binance-style header
     };
 
-    const response: AxiosResponse = await axios.post(`${BASE_URL}/fapi/v1/listenKey`, null, { headers });
+    const response: AxiosResponse = await axios.post(`${BASE_URL}/fapi/v3/listenKey`, null, { headers });
     this.listenKey = response.data.listenKey;
 logWithTimestamp('PositionManager: Got listenKey:', this.listenKey);
 
@@ -300,13 +300,13 @@ logWithTimestamp('PositionManager WS closed - reconnecting...');
       const headers = {
         'X-MBX-APIKEY': this.config.api.apiKey
       };
-      await axios.put(`${BASE_URL}/fapi/v1/listenKey`, null, { headers });
+      await axios.put(`${BASE_URL}/fapi/v3/listenKey`, null, { headers });
 logWithTimestamp('PositionManager: Keepalive sent');
     } catch (error) {
 logErrorWithTimestamp('PositionManager: Keepalive error:', error);
       // Log to error database
       errorLogger.logApiError(
-        '/fapi/v1/listenKey',
+        '/fapi/v3/listenKey',
         'PUT',
         error instanceof Error ? 0 : (error as any)?.response?.status || 0,
         error,
@@ -321,7 +321,7 @@ logErrorWithTimestamp('PositionManager: Keepalive error:', error);
       const headers = {
         'X-MBX-APIKEY': this.config.api.apiKey
       };
-      await axios.delete(`${BASE_URL}/fapi/v1/listenKey`, { headers });
+      await axios.delete(`${BASE_URL}/fapi/v3/listenKey`, { headers });
 logWithTimestamp('PositionManager: User data stream closed');
     } catch (error) {
 logErrorWithTimestamp('PositionManager: Close stream error:', error);
@@ -535,7 +535,7 @@ logErrorWithTimestamp('PositionManager: Failed to sync with exchange:', error);
     const params = {};
     const queryString = buildSignedQuery(params, this.config.api);
 
-    const response = await axios.get(`${BASE_URL}/fapi/v2/positionRisk?${queryString}`, {
+    const response = await axios.get(`${BASE_URL}/fapi/v3/positionRisk?${queryString}`, {
       headers: { 'X-MBX-APIKEY': this.config.api.apiKey }
     });
 
@@ -547,7 +547,7 @@ logErrorWithTimestamp('PositionManager: Failed to sync with exchange:', error);
     const params = {};
     const queryString = buildSignedQuery(params, this.config.api);
 
-    const response = await axios.get(`${BASE_URL}/fapi/v1/openOrders?${queryString}`, {
+    const response = await axios.get(`${BASE_URL}/fapi/v3/openOrders?${queryString}`, {
       headers: { 'X-MBX-APIKEY': this.config.api.apiKey }
     });
 
@@ -1444,7 +1444,7 @@ logErrorWithTimestamp('PositionManager: Failed to check existing orders, proceed
       // Use batch orders when placing both SL and TP to save API calls
       if (placeSL && placeTP) {
         // Get current market price to validate stop loss placement
-        const ticker = await axios.get(`https://fapi.asterdex.com/fapi/v1/ticker/price?symbol=${symbol}`);
+        const ticker = await axios.get(`https://fapi.asterdex.com/fapi/v3/ticker/price?symbol=${symbol}`);
         const currentPrice = parseFloat(ticker.data.price);
 
         // Calculate SL price
@@ -1677,7 +1677,7 @@ logWithTimestamp(`PositionManager: Placing protection orders individually for ${
       if (placeSL) {
         // Place orders individually if not placing both
         // Get current market price to avoid "Order would immediately trigger" error
-        const ticker = await axios.get(`https://fapi.asterdex.com/fapi/v1/ticker/price?symbol=${symbol}`);
+        const ticker = await axios.get(`https://fapi.asterdex.com/fapi/v3/ticker/price?symbol=${symbol}`);
         const currentPrice = parseFloat(ticker.data.price);
 
         const rawSlPrice = isLong
@@ -1746,7 +1746,7 @@ logWithTimestamp(`PositionManager: Placed SL (STOP_MARKET) for ${symbol} at ${sl
       // Place Take Profit
       if (placeTP) {
         // Get current market price to check if TP would trigger immediately
-        const ticker = await axios.get(`https://fapi.asterdex.com/fapi/v1/ticker/price?symbol=${symbol}`);
+        const ticker = await axios.get(`https://fapi.asterdex.com/fapi/v3/ticker/price?symbol=${symbol}`);
         const currentPrice = parseFloat(ticker.data.price);
 
         const rawTpPrice = isLong

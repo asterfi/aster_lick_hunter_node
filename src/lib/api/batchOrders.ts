@@ -89,7 +89,7 @@ export async function placeBatchOrders(
 
   try {
     const axios = getRateLimitedAxios();
-    const response = await axios.post(`${BASE_URL}/fapi/v1/batchOrders`, formData, {
+    const response = await axios.post(`${BASE_URL}/fapi/v3/batchOrders`, formData, {
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded',
         'X-MBX-APIKEY': credentials.apiKey
@@ -153,7 +153,7 @@ export async function cancelBatchOrders(
 
   try {
     const axios = getRateLimitedAxios();
-    const response = await axios.delete(`${BASE_URL}/fapi/v1/allOpenOrders`, {
+    const response = await axios.delete(`${BASE_URL}/fapi/v3/allOpenOrders`, {
       headers: {
         'X-MBX-APIKEY': credentials.apiKey
       },

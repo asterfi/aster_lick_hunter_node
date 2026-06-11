@@ -8,7 +8,7 @@ const BASE_URL = 'https://fapi.asterdex.com';
 // Public endpoints (no authentication)
 export async function getExchangeInfo(): Promise<any> {
   const axios = getRateLimitedAxios();
-  const response: AxiosResponse = await axios.get(`${BASE_URL}/fapi/v1/exchangeInfo`);
+  const response: AxiosResponse = await axios.get(`${BASE_URL}/fapi/v3/exchangeInfo`);
   return response.data;
 }
 
@@ -16,7 +16,7 @@ export async function getMarkPrice(symbol?: string): Promise<MarkPrice | MarkPri
   const params: Record<string, any> = {};
   if (symbol) params.symbol = symbol;
   const query = paramsToQuery(params);
-  const url = query ? `${BASE_URL}/fapi/v1/premiumIndex?${query}` : `${BASE_URL}/fapi/v1/premiumIndex`;
+  const url = query ? `${BASE_URL}/fapi/v3/premiumIndex?${query}` : `${BASE_URL}/fapi/v3/premiumIndex`;
   const axios = getRateLimitedAxios();
   const response: AxiosResponse = await axios.get(url);
   return response.data;
@@ -26,7 +26,7 @@ export async function getKlines(symbol: string, interval: string = '1m', limit: 
   const params = { symbol, interval, limit };
   const query = paramsToQuery(params);
   const axios = getRateLimitedAxios();
-  const response: AxiosResponse = await axios.get(`${BASE_URL}/fapi/v1/klines?${query}`);
+  const response: AxiosResponse = await axios.get(`${BASE_URL}/fapi/v3/klines?${query}`);
   // Klines come as [[openTime, open, high, low, close, volume], ...]
   // Convert to Kline array
   const klines = response.data.map((k: any[]) => ({
@@ -44,7 +44,7 @@ export async function getRecentTrades(symbol: string, limit: number = 500): Prom
   const params = { symbol, limit };
   const query = paramsToQuery(params);
   const axios = getRateLimitedAxios();
-  const response: AxiosResponse = await axios.get(`${BASE_URL}/fapi/v1/trades?${query}`);
+  const response: AxiosResponse = await axios.get(`${BASE_URL}/fapi/v3/trades?${query}`);
   return response.data;
 }
 
@@ -55,7 +55,7 @@ export async function getBalance(credentials: ApiCredentials): Promise<any> {
 
   try {
     const axios = getRateLimitedAxios();
-    const response: AxiosResponse = await axios.get(`${BASE_URL}/fapi/v2/balance?${query}`, {
+    const response: AxiosResponse = await axios.get(`${BASE_URL}/fapi/v3/balance?${query}`, {
       headers: {
         'X-MBX-APIKEY': credentials.apiKey
       }
@@ -66,7 +66,7 @@ export async function getBalance(credentials: ApiCredentials): Promise<any> {
       status: error.response?.status,
       statusText: error.response?.statusText,
       data: error.response?.data,
-      url: `${BASE_URL}/fapi/v2/balance?${query}`,
+      url: `${BASE_URL}/fapi/v3/balance?${query}`,
       headers: { 'X-MBX-APIKEY': credentials.apiKey }
     });
     throw error;
@@ -79,7 +79,7 @@ export async function getAccountInfo(credentials: ApiCredentials): Promise<any> 
 
   try {
     const axios = getRateLimitedAxios();
-    const response: AxiosResponse = await axios.get(`${BASE_URL}/fapi/v4/account?${query}`, {
+    const response: AxiosResponse = await axios.get(`${BASE_URL}/fapi/v3/account?${query}`, {
       headers: {
         'X-MBX-APIKEY': credentials.apiKey
       }
@@ -90,7 +90,7 @@ export async function getAccountInfo(credentials: ApiCredentials): Promise<any> 
       status: error.response?.status,
       statusText: error.response?.statusText,
       data: error.response?.data,
-      url: `${BASE_URL}/fapi/v4/account?${query}`,
+      url: `${BASE_URL}/fapi/v3/account?${query}`,
       headers: { 'X-MBX-APIKEY': credentials.apiKey }
     });
     throw error;
@@ -109,7 +109,7 @@ export async function getPositionRisk(symbol?: string, credentials?: ApiCredenti
   }
   const query = buildSignedQuery(params, credentials);
   const axios = getRateLimitedAxios();
-  const response: AxiosResponse = await axios.get(`${BASE_URL}/fapi/v2/positionRisk?${query}`, {
+  const response: AxiosResponse = await axios.get(`${BASE_URL}/fapi/v3/positionRisk?${query}`, {
     headers: {
       'X-MBX-APIKEY': credentials.apiKey
     }
@@ -129,7 +129,7 @@ export async function getOpenOrders(symbol?: string, credentials?: ApiCredential
   }
   const query = buildSignedQuery(params, credentials);
   const axios = getRateLimitedAxios();
-  const response: AxiosResponse = await axios.get(`${BASE_URL}/fapi/v1/openOrders?${query}`, {
+  const response: AxiosResponse = await axios.get(`${BASE_URL}/fapi/v3/openOrders?${query}`, {
     headers: {
       'X-MBX-APIKEY': credentials.apiKey
     }
@@ -142,7 +142,7 @@ export async function getOrderBook(symbol: string, limit: number = 5): Promise<a
   const params = { symbol, limit };
   const query = paramsToQuery(params);
   const axios = getRateLimitedAxios();
-  const response: AxiosResponse = await axios.get(`${BASE_URL}/fapi/v1/depth?${query}`);
+  const response: AxiosResponse = await axios.get(`${BASE_URL}/fapi/v3/depth?${query}`);
   return response.data;
 }
 
@@ -151,7 +151,7 @@ export async function getSymbolPrice(symbol: string): Promise<any> {
   const params = { symbol };
   const query = paramsToQuery(params);
   const axios = getRateLimitedAxios();
-  const response: AxiosResponse = await axios.get(`${BASE_URL}/fapi/v1/ticker/price?${query}`);
+  const response: AxiosResponse = await axios.get(`${BASE_URL}/fapi/v3/ticker/price?${query}`);
   return response.data;
 }
 
@@ -160,7 +160,7 @@ export async function getBookTicker(symbol: string): Promise<any> {
   const params = { symbol };
   const query = paramsToQuery(params);
   const axios = getRateLimitedAxios();
-  const response: AxiosResponse = await axios.get(`${BASE_URL}/fapi/v1/ticker/bookTicker?${query}`);
+  const response: AxiosResponse = await axios.get(`${BASE_URL}/fapi/v3/ticker/bookTicker?${query}`);
   return response.data;
 }
 
@@ -199,7 +199,7 @@ export async function getUserTrades(
 
   const query = buildSignedQuery(queryParams, credentials);
   const axios = getRateLimitedAxios();
-  const response: AxiosResponse = await axios.get(`${BASE_URL}/fapi/v1/userTrades?${query}`, {
+  const response: AxiosResponse = await axios.get(`${BASE_URL}/fapi/v3/userTrades?${query}`, {
     headers: {
       'X-MBX-APIKEY': credentials.apiKey,
     },

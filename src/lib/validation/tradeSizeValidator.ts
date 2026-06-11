@@ -28,7 +28,7 @@ export async function validateAllTradeSizes(config: Config): Promise<TradeSizeVa
     // Fetch exchange info and current prices for all symbols
     const [exchangeInfo, pricesResponse] = await Promise.all([
       getExchangeInfo(),
-      axios.get('https://fapi.asterdex.com/fapi/v1/ticker/price')
+      axios.get('https://fapi.asterdex.com/fapi/v3/ticker/price')
     ]);
 
     const priceMap = new Map<string, number>();

@@ -73,7 +73,7 @@ export async function getIncomeHistory(
 
   const axios = getRateLimitedAxios();
   const response = await axios.get<IncomeRecord[]>(
-    `${BASE_URL}/fapi/v1/income?${query}`,
+    `${BASE_URL}/fapi/v3/income?${query}`,
     {
       headers: {
         'X-MBX-APIKEY': credentials.apiKey,
@@ -353,7 +353,8 @@ export async function getTimeRangeIncome(
   range: '24h' | '7d' | '30d' | '90d' | '1y' | 'all'
 ): Promise<IncomeRecord[]> {
   // Check cache first with range-specific TTL
-  const cacheKey = `${range}_${credentials.apiKey.slice(-8)}`;
+  const uniqueId = credentials.apiKey?.slice(-8) ?? credentials.apiWalletAddress?.slice(-8) ?? 'unknown';
+  const cacheKey = `${range}_${uniqueId}`;
   const cached = incomeCache.get(cacheKey);
   const cacheTTL = getCacheTTL(range);
   const cacheAge = cached ? Date.now() - cached.timestamp : 0;

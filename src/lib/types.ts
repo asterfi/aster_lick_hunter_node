@@ -65,8 +65,11 @@ export interface SymbolConfig {
 }
 
 export interface ApiCredentials {
-  apiKey: string;          // API Key from Aster Finance exchange
-  secretKey: string;       // Secret Key from Aster Finance exchange
+  apiKey?: string;          // V1: API Key from Aster Finance exchange
+  secretKey?: string;       // V1: Secret Key from Aster Finance exchange
+  walletAddress?: string;   // V3: Main account wallet address
+  apiWalletAddress?: string; // V3: API wallet address (signer)
+  apiWalletKey?: string;    // V3: API wallet private key (for EIP-712 signing)
 }
 
 export interface ServerConfig {

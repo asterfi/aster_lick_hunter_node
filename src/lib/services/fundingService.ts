@@ -53,7 +53,7 @@ export class FundingService extends EventEmitter {
 
   private async fetchFunding(symbol: string): Promise<number | null> {
     try {
-      const response = await axios.get(`${BASE_URL}/fapi/v1/premiumIndex`, {
+      const response = await axios.get(`${BASE_URL}/fapi/v3/premiumIndex`, {
         params: { symbol },
       });
 

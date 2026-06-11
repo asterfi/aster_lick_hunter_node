@@ -11,66 +11,66 @@ import { getRateLimitManager, RequestPriority } from './rateLimitManager';
 // Endpoint weight mapping based on API documentation
 const ENDPOINT_WEIGHTS: Record<string, number> = {
   // Market Data
-  '/fapi/v1/ping': 1,
-  '/fapi/v1/time': 1,
-  '/fapi/v1/exchangeInfo': 1,
-  '/fapi/v1/depth': 2, // Default, can be 5, 10, or 20 based on limit
-  '/fapi/v1/trades': 1,
-  '/fapi/v1/historicalTrades': 20,
-  '/fapi/v1/aggTrades': 20,
-  '/fapi/v1/klines': 1, // Default, can be up to 10
-  '/fapi/v1/premiumIndex': 1,
-  '/fapi/v1/fundingRate': 1,
-  '/fapi/v1/ticker/24hr': 1, // Single symbol, 40 for all
-  '/fapi/v1/ticker/price': 1, // Single symbol, 2 for all
-  '/fapi/v1/ticker/bookTicker': 1, // Single symbol, 2 for all
+  '/fapi/v3/ping': 1,
+  '/fapi/v3/time': 1,
+  '/fapi/v3/exchangeInfo': 1,
+  '/fapi/v3/depth': 2, // Default, can be 5, 10, or 20 based on limit
+  '/fapi/v3/trades': 1,
+  '/fapi/v3/historicalTrades': 20,
+  '/fapi/v3/aggTrades': 20,
+  '/fapi/v3/klines': 1, // Default, can be up to 10
+  '/fapi/v3/premiumIndex': 1,
+  '/fapi/v3/fundingRate': 1,
+  '/fapi/v3/ticker/24hr': 1, // Single symbol, 40 for all
+  '/fapi/v3/ticker/price': 1, // Single symbol, 2 for all
+  '/fapi/v3/ticker/bookTicker': 1, // Single symbol, 2 for all
 
   // Account/Trade
-  '/fapi/v1/positionSide/dual': 30,
-  '/fapi/v1/multiAssetsMargin': 1,
-  '/fapi/v1/order': 1,
-  '/fapi/v1/batchOrders': 5,
-  '/fapi/v1/allOpenOrders': 1,
-  '/fapi/v1/openOrder': 1,
-  '/fapi/v1/openOrders': 1, // Single symbol, 40 for all
-  '/fapi/v1/allOrders': 5,
-  '/fapi/v2/balance': 5,
-  '/fapi/v2/account': 5,
-  '/fapi/v1/leverage': 1,
-  '/fapi/v1/marginType': 1,
-  '/fapi/v1/positionMargin': 1,
-  '/fapi/v2/positionRisk': 5,
-  '/fapi/v1/userTrades': 5,
-  '/fapi/v1/income': 30,
-  '/fapi/v1/leverageBracket': 1,
-  '/fapi/v1/listenKey': 1,
-  '/fapi/v1/apiTradingStatus': 1,
-  '/fapi/v1/commissionRate': 20,
+  '/fapi/v3/positionSide/dual': 30,
+  '/fapi/v3/multiAssetsMargin': 1,
+  '/fapi/v3/order': 1,
+  '/fapi/v3/batchOrders': 5,
+  '/fapi/v3/allOpenOrders': 1,
+  '/fapi/v3/openOrder': 1,
+  '/fapi/v3/openOrders': 1, // Single symbol, 40 for all
+  '/fapi/v3/allOrders': 5,
+  '/fapi/v3/balance': 5,
+  '/fapi/v3/account': 5,
+  '/fapi/v3/leverage': 1,
+  '/fapi/v3/marginType': 1,
+  '/fapi/v3/positionMargin': 1,
+  '/fapi/v3/positionRisk': 5,
+  '/fapi/v3/userTrades': 5,
+  '/fapi/v3/income': 30,
+  '/fapi/v3/leverageBracket': 1,
+  '/fapi/v3/listenKey': 1,
+  '/fapi/v3/apiTradingStatus': 1,
+  '/fapi/v3/commissionRate': 20,
 };
 
 // Priority mapping for endpoints
 const ENDPOINT_PRIORITIES: Record<string, RequestPriority> = {
   // Critical - Orders
-  '/fapi/v1/order': RequestPriority.CRITICAL,
-  '/fapi/v1/batchOrders': RequestPriority.CRITICAL,
-  '/fapi/v1/allOpenOrders': RequestPriority.CRITICAL,
+  '/fapi/v3/order': RequestPriority.CRITICAL,
+  '/fapi/v3/batchOrders': RequestPriority.CRITICAL,
+  '/fapi/v3/allOpenOrders': RequestPriority.CRITICAL,
 
   // High - Position management
-  '/fapi/v2/positionRisk': RequestPriority.HIGH,
-  '/fapi/v1/leverage': RequestPriority.HIGH,
-  '/fapi/v1/marginType': RequestPriority.HIGH,
-  '/fapi/v1/positionMargin': RequestPriority.HIGH,
+  '/fapi/v3/positionRisk': RequestPriority.HIGH,
+  '/fapi/v3/leverage': RequestPriority.HIGH,
+  '/fapi/v3/marginType': RequestPriority.HIGH,
+  '/fapi/v3/positionMargin': RequestPriority.HIGH,
 
   // Medium - Account info
-  '/fapi/v2/balance': RequestPriority.MEDIUM,
-  '/fapi/v2/account': RequestPriority.MEDIUM,
-  '/fapi/v1/openOrders': RequestPriority.MEDIUM,
+  '/fapi/v3/balance': RequestPriority.MEDIUM,
+  '/fapi/v3/account': RequestPriority.MEDIUM,
+  '/fapi/v3/openOrders': RequestPriority.MEDIUM,
 
   // Low - Market data
-  '/fapi/v1/depth': RequestPriority.LOW,
-  '/fapi/v1/ticker/24hr': RequestPriority.LOW,
-  '/fapi/v1/ticker/price': RequestPriority.LOW,
-  '/fapi/v1/klines': RequestPriority.LOW,
+  '/fapi/v3/depth': RequestPriority.LOW,
+  '/fapi/v3/ticker/24hr': RequestPriority.LOW,
+  '/fapi/v3/ticker/price': RequestPriority.LOW,
+  '/fapi/v3/klines': RequestPriority.LOW,
 };
 
 export interface RateLimitedAxiosInstance extends AxiosInstance {
@@ -99,7 +99,7 @@ export function createRateLimitedAxios(baseURL: string = 'https://fapi.asterdex.
       // Determine weight and priority
       let weight = ENDPOINT_WEIGHTS[endpoint] || 1;
       const priority = ENDPOINT_PRIORITIES[endpoint] || RequestPriority.MEDIUM;
-      const isOrder = endpoint === '/fapi/v1/order' || endpoint === '/fapi/v1/batchOrders';
+      const isOrder = endpoint === '/fapi/v3/order' || endpoint === '/fapi/v3/batchOrders';
 
       // Use longer timeout for order endpoints to handle queue delays
       if (isOrder) {
@@ -107,7 +107,7 @@ export function createRateLimitedAxios(baseURL: string = 'https://fapi.asterdex.
       }
 
       // Adjust weight for special cases
-      if (endpoint === '/fapi/v1/depth') {
+      if (endpoint === '/fapi/v3/depth') {
         const limit = parseInt(config.params?.limit || '500');
         if (limit <= 50) weight = 2;
         else if (limit <= 100) weight = 5;
@@ -115,7 +115,7 @@ export function createRateLimitedAxios(baseURL: string = 'https://fapi.asterdex.
         else weight = 20;
       }
 
-      if (endpoint === '/fapi/v1/klines') {
+      if (endpoint === '/fapi/v3/klines') {
         const limit = parseInt(config.params?.limit || '500');
         if (limit < 100) weight = 1;
         else if (limit < 500) weight = 2;
@@ -126,10 +126,10 @@ export function createRateLimitedAxios(baseURL: string = 'https://fapi.asterdex.
       // Check if symbol is omitted (increases weight for some endpoints)
       const noSymbol = !config.params?.symbol && !config.data?.symbol;
       if (noSymbol) {
-        if (endpoint === '/fapi/v1/ticker/24hr') weight = 40;
-        if (endpoint === '/fapi/v1/ticker/price') weight = 2;
-        if (endpoint === '/fapi/v1/ticker/bookTicker') weight = 2;
-        if (endpoint === '/fapi/v1/openOrders') weight = 40;
+        if (endpoint === '/fapi/v3/ticker/24hr') weight = 40;
+        if (endpoint === '/fapi/v3/ticker/price') weight = 2;
+        if (endpoint === '/fapi/v3/ticker/bookTicker') weight = 2;
+        if (endpoint === '/fapi/v3/openOrders') weight = 40;
       }
 
       // Store metadata for response interceptor
@@ -208,7 +208,7 @@ export function createRateLimitedAxios(baseURL: string = 'https://fapi.asterdex.
 
     const weight = ENDPOINT_WEIGHTS[endpoint] || 1;
     const priority = ENDPOINT_PRIORITIES[endpoint] || RequestPriority.MEDIUM;
-    const isOrder = endpoint === '/fapi/v1/order' || endpoint === '/fapi/v1/batchOrders';
+    const isOrder = endpoint === '/fapi/v3/order' || endpoint === '/fapi/v3/batchOrders';
 
     return rateLimitManager.executeRequest(
       () => originalPost<T>(url, data, config),
@@ -252,7 +252,7 @@ export function createRateLimitedAxios(baseURL: string = 'https://fapi.asterdex.
 
     const weight = ENDPOINT_WEIGHTS[endpoint] || 1;
     const priority = ENDPOINT_PRIORITIES[endpoint] || RequestPriority.HIGH; // DELETE is usually important
-    const isOrder = endpoint === '/fapi/v1/order' || endpoint === '/fapi/v1/allOpenOrders';
+    const isOrder = endpoint === '/fapi/v3/order' || endpoint === '/fapi/v3/allOpenOrders';
 
     return rateLimitManager.executeRequest(
       () => originalDelete<T>(url, config),

@@ -39,8 +39,11 @@ export const symbolConfigSchema = z.object({
 });
 
 export const apiCredentialsSchema = z.object({
-  apiKey: z.string(),
-  secretKey: z.string(),
+  apiKey: z.string().optional(),
+  secretKey: z.string().optional(),
+  walletAddress: z.string().optional(),
+  apiWalletAddress: z.string().optional(),
+  apiWalletKey: z.string().optional(),
 });
 
 export const serverConfigSchema = z.object({

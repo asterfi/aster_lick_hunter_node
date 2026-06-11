@@ -75,13 +75,12 @@ export class ConfigLoader {
       // Validate the final config
       const validated = configSchema.parse(userConfig);
 
-      // Validate API keys only if not in paper mode
+      // Validate API credentials only if not in paper mode
       if (!validated.global.paperMode) {
-        if (!validated.api.apiKey || !validated.api.secretKey) {
-          throw new Error('API keys are required when not in paper mode');
-        }
-        if (validated.api.apiKey.length !== 64 || validated.api.secretKey.length !== 64) {
-          throw new Error('API keys must be 64 characters when not in paper mode');
+        const hasV1 = validated.api.apiKey && validated.api.secretKey;
+        const hasV3 = validated.api.apiWalletAddress && validated.api.apiWalletKey;
+        if (!hasV1 && !hasV3) {
+          throw new Error('API credentials are required when not in paper mode (V1: apiKey+secretKey, V3: apiWalletAddress+apiWalletKey)');
         }
       }
 

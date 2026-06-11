@@ -14,7 +14,7 @@ export async function getPositionMode(api: ApiCredentials): Promise<boolean> {
   try {
     const axios = getRateLimitedAxios();
     const response = await axios.get<PositionModeResponse>(
-      `${BASE_URL}/fapi/v1/positionSide/dual?${queryString}`,
+      `${BASE_URL}/fapi/v3/positionSide/dual?${queryString}`,
       {
         headers: {
           'X-MBX-APIKEY': api.apiKey,
@@ -37,7 +37,7 @@ export async function setPositionMode(dualSidePosition: boolean, api: ApiCredent
   try {
     const axios = getRateLimitedAxios();
     await axios.post(
-      `${BASE_URL}/fapi/v1/positionSide/dual`,
+      `${BASE_URL}/fapi/v3/positionSide/dual`,
       params.toString(),
       {
         headers: {
