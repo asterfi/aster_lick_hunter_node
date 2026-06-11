@@ -1,6 +1,7 @@
 import WebSocket from 'ws';
 import { ApiCredentials } from '../types';
 import { getRateLimitedAxios } from './requestInterceptor';
+import { buildSignedForm, buildSignedQuery } from './auth';
 import { logWithTimestamp, logErrorWithTimestamp, logWarnWithTimestamp } from '../utils/timestamp';
 
 const BASE_URL = 'https://fapi.asterdex.com';
@@ -109,10 +110,9 @@ logWithTimestamp('[UserDataStream] User data stream stopped');
   private async getListenKey(): Promise<string> {
     try {
       const axios = getRateLimitedAxios();
-      const response = await axios.post(`${BASE_URL}/fapi/v3/listenKey`, {}, {
-        headers: {
-          'X-MBX-APIKEY': this.credentials.apiKey
-        }
+      const formData = buildSignedForm({}, this.credentials);
+      const response = await axios.post(`${BASE_URL}/fapi/v3/listenKey`, formData, {
+        headers: { 'X-MBX-APIKEY': this.credentials.apiKey || '' || '' }
       });
       return response.data.listenKey;
     } catch (error) {
@@ -129,9 +129,10 @@ logErrorWithTimestamp('[UserDataStream] Response data:', (error as any).response
 
     try {
       const axios = getRateLimitedAxios();
-      await axios.put(`${BASE_URL}/fapi/v3/listenKey`, {}, {
+      const queryString = buildSignedQuery({}, this.credentials);
+      await axios.put(`${BASE_URL}/fapi/v3/listenKey?${queryString}`, {}, {
         headers: {
-          'X-MBX-APIKEY': this.credentials.apiKey
+          'X-MBX-APIKEY': this.credentials.apiKey || ''
         }
       });
 logWithTimestamp('[UserDataStream] Listen key keepalive sent successfully');
@@ -144,9 +145,10 @@ logErrorWithTimestamp('[UserDataStream] Failed to keepalive listen key:', error 
     if (!this.listenKey) return;
 
     const axios = getRateLimitedAxios();
-    await axios.delete(`${BASE_URL}/fapi/v3/listenKey`, {
+    const queryStringDel = buildSignedQuery({}, this.credentials);
+    await axios.delete(`${BASE_URL}/fapi/v3/listenKey?${queryStringDel}`, {
       headers: {
-        'X-MBX-APIKEY': this.credentials.apiKey
+        'X-MBX-APIKEY': this.credentials.apiKey || ''
       }
     });
   }

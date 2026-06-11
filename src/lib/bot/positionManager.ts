@@ -2,7 +2,7 @@ import WebSocket from 'ws';
 import { EventEmitter } from 'events';
 import axios, { AxiosResponse } from 'axios';
 import { Config } from '../types';
-import { buildSignedQuery } from '../api/auth';
+import { buildSignedQuery, buildSignedForm } from '../api/auth';
 import { getExchangeInfo, getMarkPrice } from '../api/market';
 import { placeOrder, cancelOrder } from '../api/orders';
 import { placeStopLossAndTakeProfit } from '../api/batchOrders';
@@ -186,7 +186,7 @@ logErrorWithTimestamp('PositionManager: Failed to fetch exchange info:', error.m
     }
 
     // Skip user data stream in paper mode with no API keys
-    if (this.config.global.paperMode && (!this.config.api.apiKey || !this.config.api.secretKey)) {
+    if (this.config.global.paperMode && (!this.config.api.apiKey || '' || !this.config.api.secretKey)) {
 logWithTimestamp('PositionManager: Running in paper mode without API keys - simulating streams');
       return;
     }
@@ -214,12 +214,13 @@ logWithTimestamp('PositionManager: Stopping...');
   }
 
   private async startUserDataStream(): Promise<void> {
-    // For listen key endpoint, typically only needs API key header, no signature
+    // V3 uses EIP-712 signed form; V1 uses API key header only (auto-detected)
+    const formData = buildSignedForm({}, this.config.api);
     const headers = {
-      'X-MBX-APIKEY': this.config.api.apiKey  // Binance-style header
+      'X-MBX-APIKEY': this.config.api.apiKey || ''
     };
 
-    const response: AxiosResponse = await axios.post(`${BASE_URL}/fapi/v3/listenKey`, null, { headers });
+    const response: AxiosResponse = await axios.post(`${BASE_URL}/fapi/v3/listenKey`, formData, { headers });
     this.listenKey = response.data.listenKey;
 logWithTimestamp('PositionManager: Got listenKey:', this.listenKey);
 
@@ -298,9 +299,10 @@ logWithTimestamp('PositionManager WS closed - reconnecting...');
     if (!this.listenKey) return;
     try {
       const headers = {
-        'X-MBX-APIKEY': this.config.api.apiKey
+        'X-MBX-APIKEY': this.config.api.apiKey || ''
       };
-      await axios.put(`${BASE_URL}/fapi/v3/listenKey`, null, { headers });
+      const qs = buildSignedQuery({}, this.config.api);
+      await axios.put(`${BASE_URL}/fapi/v3/listenKey?${qs}`, null, { headers });
 logWithTimestamp('PositionManager: Keepalive sent');
     } catch (error) {
 logErrorWithTimestamp('PositionManager: Keepalive error:', error);
@@ -319,9 +321,10 @@ logErrorWithTimestamp('PositionManager: Keepalive error:', error);
     if (!this.listenKey) return;
     try {
       const headers = {
-        'X-MBX-APIKEY': this.config.api.apiKey
+        'X-MBX-APIKEY': this.config.api.apiKey || ''
       };
-      await axios.delete(`${BASE_URL}/fapi/v3/listenKey`, { headers });
+      const qs = buildSignedQuery({}, this.config.api);
+      await axios.delete(`${BASE_URL}/fapi/v3/listenKey?${qs}`, { headers });
 logWithTimestamp('PositionManager: User data stream closed');
     } catch (error) {
 logErrorWithTimestamp('PositionManager: Close stream error:', error);
@@ -536,7 +539,7 @@ logErrorWithTimestamp('PositionManager: Failed to sync with exchange:', error);
     const queryString = buildSignedQuery(params, this.config.api);
 
     const response = await axios.get(`${BASE_URL}/fapi/v3/positionRisk?${queryString}`, {
-      headers: { 'X-MBX-APIKEY': this.config.api.apiKey }
+      headers: { 'X-MBX-APIKEY': this.config.api.apiKey || '' }
     });
 
     return response.data;
@@ -548,7 +551,7 @@ logErrorWithTimestamp('PositionManager: Failed to sync with exchange:', error);
     const queryString = buildSignedQuery(params, this.config.api);
 
     const response = await axios.get(`${BASE_URL}/fapi/v3/openOrders?${queryString}`, {
-      headers: { 'X-MBX-APIKEY': this.config.api.apiKey }
+      headers: { 'X-MBX-APIKEY': this.config.api.apiKey || '' }
     });
 
     return response.data;

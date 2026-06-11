@@ -30,6 +30,28 @@ export const symbolConfigSchema = z.object({
 
   // Threshold system settings
   useThreshold: z.boolean().optional(),
+
+  // Kill Zone signal stack filters
+  cvdFilter: z.object({
+    enabled: z.boolean(),
+    neutralThreshold: z.number(),
+    minTradeCount: z.number(),
+    candleDurationMs: z.number(),
+  }).optional(),
+  fundingFilter: z.object({
+    enabled: z.boolean(),
+    extremeThreshold: z.number(),
+    cacheMs: z.number(),
+  }).optional(),
+  cascadeDetector: z.object({
+    enabled: z.boolean(),
+    windowMs: z.number(),
+    minClusterSize: z.number(),
+    acceleratingThresholdMs: z.number(),
+    peakThresholdMs: z.number(),
+    exhaustionMinMs: z.number(),
+    oiCheckEnabled: z.boolean(),
+  }).optional(),
 }).refine(data => {
   // Ensure we have either legacy or new volume thresholds
   return data.volumeThresholdUSDT !== undefined ||
