@@ -223,7 +223,7 @@ class AutoCoinsService extends EventEmitter {
           leverage: existing.leverage ?? coin.recommendedLeverage,
         };
       } else {
-        // Create new config entry from recommendations
+        // Create new config entry from recommendations with all smart defaults
         newSymbols[coin.symbol] = {
           longVolumeThresholdUSDT: coin.recommendedThreshold,
           shortVolumeThresholdUSDT: coin.recommendedThreshold,
@@ -241,6 +241,10 @@ class AutoCoinsService extends EventEmitter {
           vwapTimeframe: '5m',
           vwapLookback: 200,
           useThreshold: false,
+          adaptiveParams: { enabled: true },
+          cvdFilter: { enabled: true, neutralThreshold: 0.20, minTradeCount: 10, candleDurationMs: 60000 },
+          fundingFilter: { enabled: true, extremeThreshold: 0.0005, cacheMs: 60000 },
+          cascadeDetector: { enabled: true, windowMs: 60000, minClusterSize: 3, acceleratingThresholdMs: 5000, peakThresholdMs: 2000, exhaustionMinMs: 8000, oiCheckEnabled: true },
         };
       }
     }
