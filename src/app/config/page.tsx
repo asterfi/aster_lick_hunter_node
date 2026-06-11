@@ -9,7 +9,6 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 import { AlertCircle, CheckCircle2, Settings } from 'lucide-react';
-import { SmartSetupButton } from '@/components/SmartSetupButton';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { toast } from 'sonner';
 import type { AutoCoinSymbol } from '@/lib/types';
@@ -149,7 +148,6 @@ export default function ConfigPage() {
               </p>
             </div>
             <div className="flex items-center gap-3">
-              <SmartSetupButton />
               {saveStatus === 'saved' && (
                 <Badge variant="default" className="flex items-center gap-1">
                   <CheckCircle2 className="h-3 w-3" />
