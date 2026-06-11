@@ -107,6 +107,24 @@ logWarnWithTimestamp('   This could allow unauthorized access to your bot contro
 logWarnWithTimestamp('   Please set a strong password immediately at /config');
       }
 
+      // AutoCoins: auto-select symbols based on volume + volatility filters (MUST run before service init)
+      if (this.config.global.autoCoins?.enabled) {
+	logWithTimestamp('🤖 AutoCoins: Auto-selecting trading pairs...');
+        try {
+          await autoCoinsService.init();
+          const selected = await autoCoinsService.refreshSymbols(this.config.global.autoCoins);
+          if (selected.length > 0) {
+            const merged = autoCoinsService.applyToConfig(selected, this.config);
+            this.config = { ...this.config, symbols: merged.symbols };
+            logWithTimestamp(`🤖 AutoCoins: Selected ${selected.length} symbols — ${selected.map(s => s.symbol).join(', ')}`);
+          } else {
+            logWithTimestamp('⚠️  AutoCoins: No symbols passed filters. Using manual config.');
+          }
+        } catch (err: any) {
+          logErrorWithTimestamp('⚠️  AutoCoins: Failed to refresh symbols —', err.message);
+        }
+      }
+
       // Initialize threshold monitor with actual config
       thresholdMonitor.updateConfig(this.config);
       logWithTimestamp(`✅ Threshold monitor initialized with ${Object.keys(this.config.symbols).length} symbols`);
@@ -131,24 +149,6 @@ logWithTimestamp(`✅ WebSocket status server started on port ${wsPort}`);
 logWithTimestamp('✅ Rate limit monitoring started with toast notifications');
 logWithTimestamp(`📝 Paper Mode: ${this.config.global.paperMode ? 'ENABLED' : 'DISABLED'}`);
 logWithTimestamp(`💰 Risk Percent: ${this.config.global.riskPercent}%`);
-      // AutoCoins: auto-select symbols based on volume + volatility filters
-      if (this.config.global.autoCoins?.enabled) {
-	logWithTimestamp('🤖 AutoCoins: Auto-selecting trading pairs...');
-        try {
-          await autoCoinsService.init();
-          const selected = await autoCoinsService.refreshSymbols(this.config.global.autoCoins);
-          if (selected.length > 0) {
-            const merged = autoCoinsService.applyToConfig(selected, this.config);
-            this.config = { ...this.config, symbols: merged.symbols };
-            logWithTimestamp(`🤖 AutoCoins: Selected ${selected.length} symbols — ${selected.map(s => s.symbol).join(', ')}`);
-          } else {
-            logWithTimestamp('⚠️  AutoCoins: No symbols passed filters. Using manual config.');
-          }
-        } catch (err: any) {
-          logErrorWithTimestamp('⚠️  AutoCoins: Failed to refresh symbols —', err.message);
-        }
-      }
-
 	logWithTimestamp(`📊 Symbols configured: ${Object.keys(this.config.symbols).join(', ')}`);
 
       // Update status broadcaster with config info
