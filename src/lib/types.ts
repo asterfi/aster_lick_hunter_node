@@ -62,6 +62,15 @@ export interface SymbolConfig {
   cvdFilter?: CvdFilterConfig;
   fundingFilter?: FundingFilterConfig;
   cascadeDetector?: CascadeDetectorConfig;
+
+  // Adaptive parameters (auto-calculated from market data)
+  adaptiveParams?: {
+    enabled: boolean;              // Master toggle — when true, service overrides static SL/TP/thresholds
+    thresholdMultiplier?: number;  // Multiplier for avg1mVolume to calc threshold (default: 2.0)
+    slATRMultiplier?: number;      // ATR multiplier for stop loss (default: 1.5)
+    tpATRMultiplier?: number;      // ATR multiplier for take profit (default: 3.0)
+    refreshIntervalMs?: number;    // How often to refresh (default: 300000 = 5 min)
+  };
 }
 
 export interface ApiCredentials {
@@ -165,3 +174,23 @@ export interface MarkPrice {
   markPrice: string;
   indexPrice: string;
 };
+
+// Adaptive parameters — returned by the adaptiveParamsService
+export interface AdaptiveParams {
+  symbol: string;
+  recommendedSLPercent: number;
+  recommendedTPPercent: number;
+  recommendedLeverage: number;
+  recommendedLongThreshold: number;
+  recommendedShortThreshold: number;
+  recommendedVWAPTimeframe: string;
+  recommendedVWAPLookback: number;
+  marketRegime: 'RANGING' | 'TRENDING' | 'STRONGLY_TRENDING';
+  regimeConfidence: number; // 0-1
+  atrPercent: number;
+  avg1mVolume: number;
+  winRate?: number;        // from performance tracking
+  profitFactor?: number;   // from performance tracking
+  riskAdjustment: number;  // 0.5-2.0 multiplier based on win rate + regime
+  lastUpdated: number;
+}
