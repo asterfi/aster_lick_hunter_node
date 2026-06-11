@@ -78,7 +78,7 @@ function formatPercent(pct: number): string {
 
 interface AutoCoinsPanelProps {
   config: {
-    autoCoins?: AutoCoinsConfig;
+    global?: { autoCoins?: AutoCoinsConfig };
     symbols?: Record<string, any>;
   };
   onUpdateConfig: (path: string, value: any) => void;
@@ -94,7 +94,7 @@ export default function AutoCoinsPanel({
   onUpdateConfig,
   onApplySymbols,
 }: AutoCoinsPanelProps) {
-  const acConfig: AutoCoinsConfig = config.autoCoins ?? DEFAULT_AUTOCOINS_CONFIG;
+  const acConfig: AutoCoinsConfig = config.global?.autoCoins ?? DEFAULT_AUTOCOINS_CONFIG;
 
   const [symbols, setSymbols] = useState<AutoCoinSymbol[]>([]);
   const [loading, setLoading] = useState(false);
