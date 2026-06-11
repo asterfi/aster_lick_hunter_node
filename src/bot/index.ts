@@ -169,8 +169,9 @@ logErrorWithTimestamp('❌ Config error:', error.message);
       const hasValidApiKeys = hasV1 || hasV3;
 
       if (!hasValidApiKeys) {
-logWithTimestamp('⚠️  WARNING: No API keys configured. Running in PAPER MODE only.');
-logWithTimestamp('   Please configure your API keys via the web interface at http://localhost:3000/config');
+logWithTimestamp('⚠️  WARNING: No API keys or V3 credentials configured. Running in PAPER MODE only.');
+logWithTimestamp('   Please configure your API keys (V1) or wallet credentials (V3)');
+logWithTimestamp('   via the web interface at http://localhost:3000/config');
         if (!this.config.global.paperMode) {
 logErrorWithTimestamp('❌ Cannot run in LIVE mode without API keys!');
           this.statusBroadcaster.broadcastConfigError(

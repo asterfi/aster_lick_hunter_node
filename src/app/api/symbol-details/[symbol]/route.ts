@@ -23,8 +23,8 @@ export async function GET(
 
     // Fetch both exchange info and current price in parallel
     const [exchangeInfoResponse, priceResponse] = await Promise.all([
-      axios.get(`${BASE_URL}/fapi/v1/exchangeInfo`),
-      axios.get(`${BASE_URL}/fapi/v1/ticker/price?symbol=${symbol}`)
+      axios.get(`${BASE_URL}/fapi/v3/exchangeInfo`),
+      axios.get(`${BASE_URL}/fapi/v3/ticker/price?symbol=${symbol}`)
     ]);
 
     // Find the symbol info

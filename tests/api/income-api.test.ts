@@ -40,7 +40,7 @@ describe('Income API', () => {
 
       expect(result).toEqual(mockData);
       expect(axios.get).toHaveBeenCalledWith(
-        expect.stringContaining('/fapi/v1/income'),
+        expect.stringContaining('/fapi/v3/income'),
         expect.objectContaining({
           headers: { 'X-MBX-APIKEY': mockCredentials.apiKey },
         })

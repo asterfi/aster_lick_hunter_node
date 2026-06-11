@@ -51,10 +51,10 @@ async function testWeightCalculation() {
 
   await summary.run('Calculate weight for market data endpoints', async () => {
     const endpoints = [
-      { path: '/fapi/v1/ticker/24hr', weight: 1 },
-      { path: '/fapi/v1/depth', weight: 5 },
-      { path: '/fapi/v1/klines', weight: 1 },
-      { path: '/fapi/v1/exchangeInfo', weight: 1 }
+      { path: '/fapi/v3/ticker/24hr', weight: 1 },
+      { path: '/fapi/v3/depth', weight: 5 },
+      { path: '/fapi/v3/klines', weight: 1 },
+      { path: '/fapi/v3/exchangeInfo', weight: 1 }
     ];
 
     for (const endpoint of endpoints) {
@@ -64,10 +64,10 @@ async function testWeightCalculation() {
 
   await summary.run('Calculate weight for account endpoints', async () => {
     const endpoints = [
-      { path: '/fapi/v2/balance', weight: 5 },
-      { path: '/fapi/v2/account', weight: 5 },
-      { path: '/fapi/v2/positionRisk', weight: 5 },
-      { path: '/fapi/v1/openOrders', weight: 1 }
+      { path: '/fapi/v3/balance', weight: 5 },
+      { path: '/fapi/v3/account', weight: 5 },
+      { path: '/fapi/v3/positionRisk', weight: 5 },
+      { path: '/fapi/v3/openOrders', weight: 1 }
     ];
 
     for (const endpoint of endpoints) {
