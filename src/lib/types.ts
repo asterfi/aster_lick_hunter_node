@@ -1,3 +1,29 @@
+// CVD Filter configuration — real-time volume delta per symbol
+export interface CvdFilterConfig {
+  enabled: boolean;
+  neutralThreshold: number;   // |ratio| below this is neutral (default 0.20)
+  minTradeCount: number;      // minimum aggTrades in current candle to evaluate (default 10)
+  candleDurationMs: number;   // reset CVD each candle period (default 60000)
+}
+
+// Funding Rate Filter configuration
+export interface FundingFilterConfig {
+  enabled: boolean;
+  extremeThreshold: number;   // funding rate above/below this is extreme (default 0.0005 = 0.05%)
+  cacheMs: number;            // how long to cache funding before re-fetch (default 60000)
+}
+
+// Cascade Detector configuration
+export interface CascadeDetectorConfig {
+  enabled: boolean;
+  windowMs: number;              // cluster window in ms (default 60000)
+  minClusterSize: number;        // minimum liquidations to call it a cascade (default 3)
+  acceleratingThresholdMs: number; // inter-arrival below this = accelerating (default 5000)
+  peakThresholdMs: number;       // inter-arrival below this = peak (default 2000)
+  exhaustionMinMs: number;       // inter-arrival above this = exhausting (default 8000)
+  oiCheckEnabled: boolean;       // check OI direction during cluster (default true)
+}
+
 export interface SymbolConfig {
   // Volume thresholds
   volumeThresholdUSDT?: number;       // Legacy field for backward compatibility
@@ -31,6 +57,11 @@ export interface SymbolConfig {
   useThreshold?: boolean;       // Enable threshold-based triggering for this symbol (default: false)
   thresholdTimeWindow?: number; // Time window in ms for volume accumulation (default: 60000)
   thresholdCooldown?: number;   // Cooldown period in ms between triggers (default: 30000)
+
+  // Kill Zone signal stack filters
+  cvdFilter?: CvdFilterConfig;
+  fundingFilter?: FundingFilterConfig;
+  cascadeDetector?: CascadeDetectorConfig;
 }
 
 export interface ApiCredentials {

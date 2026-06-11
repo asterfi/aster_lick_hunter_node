@@ -1,6 +1,6 @@
 import WebSocket from 'ws';
 import { EventEmitter } from 'events';
-import { Config, LiquidationEvent, SymbolConfig } from '../types';
+import { Config, LiquidationEvent, SymbolConfig, CascadeDetectorConfig } from '../types';
 import { getMarkPrice, getExchangeInfo, getAccountInfo } from '../api/market';
 import { placeOrder, setLeverage } from '../api/orders';
 import { calculateOptimalPrice, validateOrderParams, analyzeOrderBookDepth, getSymbolFilters } from '../api/pricing';
@@ -11,6 +11,9 @@ import { vwapService } from '../services/vwapService';
 import { vwapStreamer } from '../services/vwapStreamer';
 import { thresholdMonitor } from '../services/thresholdMonitor';
 import { symbolPrecision } from '../utils/symbolPrecision';
+import { cvdService } from '../services/cvdService';
+import { fundingService } from '../services/fundingService';
+import { cascadeDetector } from '../services/cascadeDetector';
 import {
   parseExchangeError,
   NotionalError,
@@ -74,6 +77,18 @@ export class Hunter extends EventEmitter {
 
     // Update threshold monitor configuration
     thresholdMonitor.updateConfig(newConfig);
+
+    // Update kill zone signal services
+    cvdService.updateConfig(newConfig);
+    fundingService.updateConfig(newConfig);
+
+    const cascadeConfigs = new Map<string, CascadeDetectorConfig>();
+    for (const [symbol, symConfig] of Object.entries(newConfig.symbols)) {
+      if (symConfig.cascadeDetector?.enabled) {
+        cascadeConfigs.set(symbol, symConfig.cascadeDetector);
+      }
+    }
+    cascadeDetector.updateConfigs(cascadeConfigs);
 
     // Log significant changes
     if (oldConfig.global.paperMode !== newConfig.global.paperMode) {
@@ -285,6 +300,19 @@ logErrorWithTimestamp('Hunter: Failed to sync position mode during periodic chec
       );
     }, 2 * 60 * 1000);
 
+    // Start kill zone signal services
+    cvdService.start(this.config);
+    fundingService.start(this.config);
+
+    const cascadeConfigs = new Map<string, CascadeDetectorConfig>();
+    for (const [symbol, symConfig] of Object.entries(this.config.symbols)) {
+      if (symConfig.cascadeDetector?.enabled) {
+        cascadeConfigs.set(symbol, symConfig.cascadeDetector);
+      }
+    }
+    cascadeDetector.start();
+    cascadeDetector.updateConfigs(cascadeConfigs);
+
     // Initialize symbol precision manager with exchange info
     try {
       const exchangeInfo = await getExchangeInfo();
@@ -320,6 +348,11 @@ logWithTimestamp('Hunter: Running in paper mode without API keys - simulating li
 
     // Stop periodic cleanup
     this.stopPeriodicCleanup();
+
+    // Stop kill zone signal services
+    cvdService.stop();
+    fundingService.stop();
+    cascadeDetector.stop();
 
     // Stop periodic sync
     if (this.syncInterval) {
@@ -521,6 +554,20 @@ logWithTimestamp(`Hunter: ✓ Cooldown passed - Triggering ${tradeSide} trade fo
         }
         this.lastTradeTimestamps.set(liquidation.symbol, symbolTrades);
 
+        // Kill Zone Filters
+        const killZoneResult = await this.checkKillZoneFilters(liquidation, symbolConfig, tradeSide);
+        if (!killZoneResult.allowed) {
+          logWithTimestamp(`Hunter: Kill Zone blocked — ${killZoneResult.reason}`);
+          this.emit('tradeBlocked', {
+            symbol: liquidation.symbol,
+            side: tradeSide,
+            reason: killZoneResult.reason,
+            blockType: 'KILL_ZONE',
+            details: killZoneResult,
+          });
+          return;
+        }
+
         // Analyze and trade with the cumulative trigger
         await this.analyzeAndTrade(liquidation, symbolConfig, tradeSide);
       }
@@ -565,9 +612,76 @@ logWithTimestamp(`Hunter: ✓ Cooldown passed - Triggering ${tradeSide} trade fo
       }
       this.lastTradeTimestamps.set(liquidation.symbol, symbolTrades);
 
+      // Kill Zone Filters
+      const killZoneResult = await this.checkKillZoneFilters(liquidation, symbolConfig, tradeSide);
+      if (!killZoneResult.allowed) {
+        logWithTimestamp(`Hunter: Kill Zone blocked — ${killZoneResult.reason}`);
+        this.emit('tradeBlocked', {
+          symbol: liquidation.symbol,
+          side: tradeSide,
+          reason: killZoneResult.reason,
+          blockType: 'KILL_ZONE',
+          details: killZoneResult,
+        });
+        return;
+      }
+
       // Analyze and trade with instant trigger
       await this.analyzeAndTrade(liquidation, symbolConfig);
     }
+  }
+
+  /**
+   * Kill Zone Signal Stack — runs CVD, Funding, and Cascade filters
+   * as sequential binary gates before trade entry.
+   *
+   * All filters are fail-open: if a filter is disabled or data is unavailable,
+   * it returns allowed=true so trades are never blocked by missing data.
+   */
+  private async checkKillZoneFilters(
+    liquidation: LiquidationEvent,
+    symbolConfig: SymbolConfig,
+    tradeSide: 'BUY' | 'SELL'
+  ): Promise<{ allowed: boolean; reason: string; details?: any }> {
+    const symbol = liquidation.symbol;
+
+    // === CVD Filter ===
+    if (symbolConfig.cvdFilter?.enabled) {
+      const cvdResult = tradeSide === 'BUY'
+        ? cvdService.shouldAllowLong(symbol)
+        : cvdService.shouldAllowShort(symbol);
+
+      if (!cvdResult.allowed) {
+        return { allowed: false, reason: cvdResult.reason, details: { cvd: cvdResult } };
+      }
+      logWithTimestamp(`Hunter: ✓ CVD Filter passed for ${symbol} ${tradeSide} — ${cvdResult.reason}`);
+    }
+
+    // === Funding Filter ===
+    if (symbolConfig.fundingFilter?.enabled) {
+      const fundingResult = tradeSide === 'BUY'
+        ? await fundingService.shouldAllowLong(symbol)
+        : await fundingService.shouldAllowShort(symbol);
+
+      if (!fundingResult.allowed) {
+        return { allowed: false, reason: fundingResult.reason, details: { funding: fundingResult } };
+      }
+      logWithTimestamp(`Hunter: ✓ Funding Filter passed for ${symbol} ${tradeSide} — ${fundingResult.reason}`);
+    }
+
+    // === Cascade Detector ===
+    if (symbolConfig.cascadeDetector?.enabled) {
+      const cascadeResult = cascadeDetector.processLiquidation(liquidation);
+
+      if (!cascadeResult.shouldEnter) {
+        return { allowed: false, reason: cascadeResult.reason, details: { cascade: cascadeResult } };
+      }
+      if (cascadeResult.state !== 'IDLE' && cascadeResult.state !== 'BUILDING') {
+        logWithTimestamp(`Hunter: ✓ Cascade Detector: ${cascadeResult.reason}`);
+      }
+    }
+
+    return { allowed: true, reason: 'All kill zone filters passed' };
   }
 
   private async analyzeAndTrade(liquidation: LiquidationEvent, symbolConfig: SymbolConfig, _forcedSide?: 'BUY' | 'SELL'): Promise<void> {
