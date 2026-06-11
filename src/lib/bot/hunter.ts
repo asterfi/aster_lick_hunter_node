@@ -14,6 +14,7 @@ import { symbolPrecision } from '../utils/symbolPrecision';
 import { cvdService } from '../services/cvdService';
 import { fundingService } from '../services/fundingService';
 import { cascadeDetector } from '../services/cascadeDetector';
+import { adaptiveParamsService } from '../services/adaptiveParamsService';
 import {
   parseExchangeError,
   NotionalError,
@@ -77,6 +78,9 @@ export class Hunter extends EventEmitter {
 
     // Update threshold monitor configuration
     thresholdMonitor.updateConfig(newConfig);
+
+    // Update adaptive parameter engine
+    adaptiveParamsService.updateConfig(newConfig);
 
     // Update kill zone signal services
     cvdService.updateConfig(newConfig);
@@ -277,6 +281,9 @@ logErrorWithTimestamp('Hunter: Failed to sync position mode with exchange:', err
     if (this.isRunning) return;
     this.isRunning = true;
 
+    // Initialize adaptive parameter engine
+    adaptiveParamsService.init(this.config);
+
     // Log threshold system configuration on startup
     if (this.config.global.useThresholdSystem) {
 logWithTimestamp('Hunter: Global threshold system ENABLED');
@@ -359,6 +366,9 @@ logWithTimestamp('Hunter: Running in paper mode without API keys - simulating li
     cvdService.stop();
     fundingService.stop();
     cascadeDetector.stop();
+
+    // Stop adaptive parameter engine
+    adaptiveParamsService.destroy();
 
     // Stop periodic sync
     if (this.syncInterval) {
@@ -486,6 +496,9 @@ logWithTimestamp('Hunter WS closed');
     const symbolConfig = this.config.symbols[liquidation.symbol];
     if (!symbolConfig) return; // Symbol not in config
 
+    // Apply adaptive parameters if enabled for this symbol (dynamic thresholds, SL/TP, VWAP)
+    const effectiveConfig = adaptiveParamsService.applyAdaptiveParams(symbolConfig, liquidation.symbol);
+
     const volumeUSDT = liquidation.qty * liquidation.price;
 
     // Store liquidation in database (non-blocking)
@@ -535,7 +548,7 @@ logErrorWithTimestamp('Hunter: Failed to store liquidation:', error);
       if (shouldTrade && tradeSide) {
         // Check cooldown to prevent multiple trades from same window
         const now = Date.now();
-        const cooldownPeriod = symbolConfig.thresholdCooldown || 30000; // Use symbol-specific cooldown or default 30s
+        const cooldownPeriod = effectiveConfig.thresholdCooldown || 30000; // Use symbol-specific cooldown or default 30s
         const symbolTrades = this.lastTradeTimestamps.get(liquidation.symbol) || { long: 0, short: 0 };
 
         const lastTradeTime = tradeSide === 'BUY' ? symbolTrades.long : symbolTrades.short;
@@ -561,7 +574,7 @@ logWithTimestamp(`Hunter: ✓ Cooldown passed - Triggering ${tradeSide} trade fo
         this.lastTradeTimestamps.set(liquidation.symbol, symbolTrades);
 
         // Kill Zone Filters
-        const killZoneResult = await this.checkKillZoneFilters(liquidation, symbolConfig, tradeSide);
+        const killZoneResult = await this.checkKillZoneFilters(liquidation, effectiveConfig, tradeSide);
         if (!killZoneResult.allowed) {
           logWithTimestamp(`Hunter: Kill Zone blocked — ${killZoneResult.reason}`);
           this.emit('tradeBlocked', {
@@ -575,7 +588,7 @@ logWithTimestamp(`Hunter: ✓ Cooldown passed - Triggering ${tradeSide} trade fo
         }
 
         // Analyze and trade with the cumulative trigger
-        await this.analyzeAndTrade(liquidation, symbolConfig, tradeSide);
+        await this.analyzeAndTrade(liquidation, effectiveConfig, tradeSide);
       }
     } else {
       // ORIGINAL INSTANT TRIGGER SYSTEM
@@ -583,8 +596,8 @@ logWithTimestamp(`Hunter: ✓ Cooldown passed - Triggering ${tradeSide} trade fo
       // SELL liquidation means longs are getting liquidated, we might want to BUY
       // BUY liquidation means shorts are getting liquidated, we might want to SELL
       const thresholdToCheck = liquidation.side === 'SELL'
-        ? (symbolConfig.longVolumeThresholdUSDT ?? symbolConfig.volumeThresholdUSDT ?? 0)
-        : (symbolConfig.shortVolumeThresholdUSDT ?? symbolConfig.volumeThresholdUSDT ?? 0);
+        ? (effectiveConfig.longVolumeThresholdUSDT ?? effectiveConfig.volumeThresholdUSDT ?? 0)
+        : (effectiveConfig.shortVolumeThresholdUSDT ?? effectiveConfig.volumeThresholdUSDT ?? 0);
 
       if (volumeUSDT < thresholdToCheck) return; // Too small
 
@@ -593,7 +606,7 @@ logWithTimestamp(`Hunter: ✓ Cooldown passed - Triggering ${tradeSide} trade fo
       // Check cooldown for instant trigger system (apply same cooldown logic as threshold system)
       const tradeSide = liquidation.side === 'SELL' ? 'BUY' : 'SELL';
       const now = Date.now();
-      const cooldownPeriod = symbolConfig.thresholdCooldown || 30000; // Use same cooldown setting
+      const cooldownPeriod = effectiveConfig.thresholdCooldown || 30000; // Use same cooldown setting
       const symbolTrades = this.lastTradeTimestamps.get(liquidation.symbol) || { long: 0, short: 0 };
 
       const lastTradeTime = tradeSide === 'BUY' ? symbolTrades.long : symbolTrades.short;
@@ -619,7 +632,7 @@ logWithTimestamp(`Hunter: ✓ Cooldown passed - Triggering ${tradeSide} trade fo
       this.lastTradeTimestamps.set(liquidation.symbol, symbolTrades);
 
       // Kill Zone Filters
-      const killZoneResult = await this.checkKillZoneFilters(liquidation, symbolConfig, tradeSide);
+      const killZoneResult = await this.checkKillZoneFilters(liquidation, effectiveConfig, tradeSide);
       if (!killZoneResult.allowed) {
         logWithTimestamp(`Hunter: Kill Zone blocked — ${killZoneResult.reason}`);
         this.emit('tradeBlocked', {
@@ -633,7 +646,7 @@ logWithTimestamp(`Hunter: ✓ Cooldown passed - Triggering ${tradeSide} trade fo
       }
 
       // Analyze and trade with instant trigger
-      await this.analyzeAndTrade(liquidation, symbolConfig);
+      await this.analyzeAndTrade(liquidation, effectiveConfig);
     }
   }
 
@@ -692,6 +705,9 @@ logWithTimestamp(`Hunter: ✓ Cooldown passed - Triggering ${tradeSide} trade fo
 
   private async analyzeAndTrade(liquidation: LiquidationEvent, symbolConfig: SymbolConfig, _forcedSide?: 'BUY' | 'SELL'): Promise<void> {
     try {
+      // Apply adaptive parameters if enabled for this symbol
+      const effectiveConfig = adaptiveParamsService.applyAdaptiveParams(symbolConfig, liquidation.symbol);
+
       // Get mark price and recent 1m kline
       const [markPriceData] = Array.isArray(await getMarkPrice(liquidation.symbol)) ?
         await getMarkPrice(liquidation.symbol) as any[] :
@@ -706,9 +722,9 @@ logWithTimestamp(`Hunter: ✓ Cooldown passed - Triggering ${tradeSide} trade fo
       const triggerSell = liquidation.side === 'BUY' && priceRatio > 0.99;  // 1% above
 
       // Check VWAP protection if enabled
-      if (symbolConfig.vwapProtection) {
-        const timeframe = symbolConfig.vwapTimeframe || '1m';
-        const lookback = symbolConfig.vwapLookback || 100;
+      if (effectiveConfig.vwapProtection) {
+        const timeframe = effectiveConfig.vwapTimeframe || '1m';
+        const lookback = effectiveConfig.vwapLookback || 100;
 
         if (triggerBuy) {
           // Try to use streamer data first (real-time)
@@ -813,7 +829,7 @@ logWithTimestamp(`Hunter: VWAP Check Passed - Price $${liquidation.price.toFixed
         });
 
         logWithTimestamp(`Hunter: Triggering BUY for ${liquidation.symbol} at ${liquidation.price}`);
-        await this.placeTrade(liquidation.symbol, 'BUY', symbolConfig, liquidation.price);
+        await this.placeTrade(liquidation.symbol, 'BUY', effectiveConfig, liquidation.price);
       } else if (triggerSell) {
         const volumeUSDT = liquidation.qty * liquidation.price;
 
@@ -828,7 +844,7 @@ logWithTimestamp(`Hunter: VWAP Check Passed - Price $${liquidation.price.toFixed
         });
 
         logWithTimestamp(`Hunter: Triggering SELL for ${liquidation.symbol} at ${liquidation.price}`);
-        await this.placeTrade(liquidation.symbol, 'SELL', symbolConfig, liquidation.price);
+        await this.placeTrade(liquidation.symbol, 'SELL', effectiveConfig, liquidation.price);
       }
     } catch (error) {
 logErrorWithTimestamp('Hunter: Analysis error:', error);

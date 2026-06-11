@@ -111,6 +111,20 @@ class AdaptiveParamsService extends EventEmitter {
   }
 
   /**
+   * Update configuration and re-initialise if already running.
+   * Triggers a full refresh of all enabled symbols.
+   */
+  public async updateConfig(config: Config): Promise<void> {
+    if (!this.initialised) {
+      // If not initialised yet, nothing to update
+      return;
+    }
+
+    logWithTimestamp('[adaptiveParams] Config updated — refreshing all symbols...');
+    await this.refreshAll(config);
+  }
+
+  /**
    * Fetch fresh data for every enabled symbol and update the cache.
    * Emits 'paramsUpdated' with a map of symbol -> AdaptiveParams.
    */

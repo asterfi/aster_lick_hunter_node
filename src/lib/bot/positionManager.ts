@@ -11,6 +11,7 @@ import { getBalanceService } from '../services/balanceService';
 import { errorLogger } from '../services/errorLogger';
 import { getPriceService } from '../services/priceService';
 import { invalidateIncomeCache } from '../api/income';
+import { adaptiveParamsService } from '../services/adaptiveParamsService';
 import { logWithTimestamp, logErrorWithTimestamp, logWarnWithTimestamp } from '../utils/timestamp';
 
 // Minimal local state - only track order IDs linked to positions
@@ -1137,6 +1138,9 @@ logWarnWithTimestamp(`PositionManager: Could not find position key for order ${o
         } else if (realizedPnl !== 0) {
 logWithTimestamp(`PositionManager: Using exchange-provided PnL for ${symbol} ${orderType}: $${realizedPnl.toFixed(2)}`);
         }
+
+        // Record trade performance in adaptive parameter engine
+        adaptiveParamsService.recordTrade(symbol, realizedPnl);
 
         // Broadcast order filled event (SL/TP)
         if (this.statusBroadcaster) {
