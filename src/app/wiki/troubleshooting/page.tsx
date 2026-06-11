@@ -259,7 +259,7 @@ export default function TroubleshootingPage() {
                   <div className="bg-background border p-3 rounded font-mono text-xs">
 {`# Test basic connection (replace with your API key)
 curl -H "X-MBX-APIKEY: your-api-key-here" \\
-https://fapi.asterdex.com/fapi/v1/exchangeInfo
+https://fapi.asterdex.com/fapi/v3/exchangeInfo
 
 # Should return exchange information if connection works`}
                   </div>
