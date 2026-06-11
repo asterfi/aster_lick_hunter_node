@@ -89,6 +89,20 @@ export const rateLimitConfigSchema = z.object({
   maxConcurrentRequests: z.number().min(1).max(10).optional(),
 }).optional();
 
+export const autoCoinsConfigSchema = z.object({
+  enabled: z.boolean(),
+  minVolume24h: z.number().min(0),
+  maxVolume24h: z.number().min(0).optional(),
+  volatilityEnabled: z.boolean(),
+  volatilityTimeframe: z.string(),
+  volatilityThreshold: z.number().min(0).max(100),
+  volatilityLength: z.number().min(1),
+  minPrice: z.number().min(0),
+  maxPrice: z.number().min(0).optional(),
+  blacklistedSymbols: z.array(z.string()),
+  maxSymbols: z.number().min(1).max(100),
+}).optional();
+
 export const globalConfigSchema = z.object({
   riskPercent: z.number().min(0).max(100),
   paperMode: z.boolean(),
@@ -97,6 +111,7 @@ export const globalConfigSchema = z.object({
   useThresholdSystem: z.boolean().optional(),
   server: serverConfigSchema,
   rateLimit: rateLimitConfigSchema,
+  autoCoins: autoCoinsConfigSchema,
 });
 
 export const configSchema = z.object({

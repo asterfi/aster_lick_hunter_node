@@ -1,8 +1,9 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import { DashboardLayout } from '@/components/dashboard-layout';
 import SymbolConfigForm from '@/components/SymbolConfigForm';
+import AutoCoinsPanel from '@/components/AutoCoinsPanel';
 import { useConfig } from '@/components/ConfigProvider';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -11,6 +12,7 @@ import { AlertCircle, CheckCircle2, Settings } from 'lucide-react';
 import { SmartSetupButton } from '@/components/SmartSetupButton';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { toast } from 'sonner';
+import type { AutoCoinSymbol } from '@/lib/types';
 
 export default function ConfigPage() {
   const { config, loading, updateConfig } = useConfig();
@@ -46,6 +48,62 @@ export default function ConfigPage() {
       setTimeout(() => setSaveStatus('idle'), 3000);
     }
   };
+
+  const handleApplySymbols = useCallback(
+    async (autoSymbols: AutoCoinSymbol[]) => {
+      if (!config) return;
+
+      // Build a new symbols record: merge auto-selected symbols into existing config
+      const newSymbols = { ...config.symbols };
+
+      for (const coin of autoSymbols) {
+        const existing = newSymbols[coin.symbol];
+
+        if (existing) {
+          // Keep existing config but overlay auto-recommended values
+          newSymbols[coin.symbol] = {
+            ...existing,
+            longVolumeThresholdUSDT:
+              existing.longVolumeThresholdUSDT ?? coin.recommendedThreshold,
+            shortVolumeThresholdUSDT:
+              existing.shortVolumeThresholdUSDT ?? coin.recommendedThreshold,
+            slPercent: existing.slPercent ?? coin.recommendedSL,
+            tpPercent: existing.tpPercent ?? coin.recommendedTP,
+            leverage: existing.leverage ?? coin.recommendedLeverage,
+          };
+        } else {
+          // Create new config entry from recommendations
+          newSymbols[coin.symbol] = {
+            longVolumeThresholdUSDT: coin.recommendedThreshold,
+            shortVolumeThresholdUSDT: coin.recommendedThreshold,
+            tradeSize: 0.001,
+            longTradeSize: 10,
+            shortTradeSize: 10,
+            maxPositionMarginUSDT: 200,
+            leverage: coin.recommendedLeverage,
+            tpPercent: coin.recommendedTP,
+            slPercent: coin.recommendedSL,
+            priceOffsetBps: 2,
+            maxSlippageBps: 50,
+            orderType: 'LIMIT' as const,
+            vwapProtection: true,
+            vwapTimeframe: '5m',
+            vwapLookback: 200,
+            useThreshold: false,
+          };
+        }
+      }
+
+      const updatedConfig = {
+        ...config,
+        symbols: newSymbols,
+      };
+
+      await updateConfig(updatedConfig);
+      toast.success(`Applied ${autoSymbols.length} auto-selected symbols`);
+    },
+    [config, updateConfig],
+  );
 
   if (loading) {
     return (
@@ -107,6 +165,18 @@ export default function ConfigPage() {
               No real trades will be executed. Disable paper mode in the settings below to start live trading.
             </AlertDescription>
           </Alert>
+        )}
+
+        {/* AutoCoins Panel */}
+        {config && (
+          <AutoCoinsPanel
+            config={config}
+            onUpdateConfig={(path, value) => {
+              // This is a simplified handler — full config management is done via SymbolConfigForm
+              // The AutoCoinsPanel uses its own API calls for refresh/blacklist
+            }}
+            onApplySymbols={handleApplySymbols}
+          />
         )}
 
         {/* Configuration Form */}

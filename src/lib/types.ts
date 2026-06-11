@@ -109,6 +109,7 @@ export interface GlobalConfig {
   useThresholdSystem?: boolean; // Enable 60-second rolling volume threshold system (default: false)
   server?: ServerConfig;    // Optional server configuration
   rateLimit?: RateLimitConfig; // Rate limit configuration
+  autoCoins?: AutoCoinsConfig; // Auto-selected trading pairs configuration
 }
 
 export interface Config {
@@ -193,4 +194,35 @@ export interface AdaptiveParams {
   profitFactor?: number;   // from performance tracking
   riskAdjustment: number;  // 0.5-2.0 multiplier based on win rate + regime
   lastUpdated: number;
+}
+
+// ---------------------------------------------------------------------------
+// AutoCoins — auto-selected trading pairs based on volume & volatility filters
+// ---------------------------------------------------------------------------
+
+export interface AutoCoinsConfig {
+  enabled: boolean;
+  minVolume24h: number;          // Minimum 24h USDT volume (default: 10_000_000)
+  maxVolume24h?: number;         // Optional maximum 24h USDT volume
+  volatilityEnabled: boolean;    // Enable volatility filtering
+  volatilityTimeframe: string;   // '5m' | '15m' | '1h' (default: '5m')
+  volatilityThreshold: number;   // Max % move per candle (default: 5)
+  volatilityLength: number;      // Number of candles to check (default: 24)
+  minPrice: number;              // Minimum price in USDT (default: 0.01)
+  maxPrice?: number;             // Optional maximum price in USDT
+  blacklistedSymbols: string[];  // Manually blacklisted symbols
+  maxSymbols: number;            // Maximum symbols to select (default: 20)
+}
+
+export interface AutoCoinSymbol {
+  symbol: string;
+  price: number;
+  volume24h: number;
+  maxVolatility: number;   // max candle move % in the lookback period
+  atrPercent: number;      // ATR(14) as % of price
+  recommendedSL: number;
+  recommendedTP: number;
+  recommendedLeverage: number;
+  recommendedThreshold: number; // thresholdUSDT = volume24h / 1440 * 2
+  blacklisted?: boolean;   // true if auto-blacklisted due to volatility
 }
