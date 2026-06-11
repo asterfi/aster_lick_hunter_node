@@ -24,8 +24,10 @@ export async function POST(
 
     const config = await loadConfig();
 
-    // If no API key is configured, return simulation mode
-    if (!config.api.apiKey || !config.api.secretKey) {
+    const hasV1 = config.api.apiKey && config.api.secretKey;
+    const hasV3 = config.api.apiWalletAddress && config.api.apiWalletKey;
+    // If no API credentials are configured, return simulation mode
+    if (!hasV1 && !hasV3) {
       return NextResponse.json({
         success: true,
         message: `Simulated closing ${symbol} ${side} position`,

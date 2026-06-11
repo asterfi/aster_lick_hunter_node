@@ -89,7 +89,9 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
       const response = await fetch('/api/config');
       if (response.ok) {
         const config = await response.json();
-        const hasApiKeys = config?.api?.apiKey && config?.api?.secretKey;
+        const hasV1 = config?.api?.apiKey && config?.api?.secretKey;
+        const hasV3 = config?.api?.apiWalletAddress && config?.api?.apiWalletKey;
+        const hasApiKeys = !!(hasV1 || hasV3);
         return hasApiKeys;
       }
     } catch (error) {

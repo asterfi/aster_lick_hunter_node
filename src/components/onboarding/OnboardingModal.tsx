@@ -58,7 +58,10 @@ export function OnboardingModal() {
       // Ensure API exists with empty strings if not present
       api: {
         apiKey: config.api?.apiKey || '',
-        secretKey: config.api?.secretKey || ''
+        secretKey: config.api?.secretKey || '',
+        walletAddress: config.api?.walletAddress || '',
+        apiWalletAddress: config.api?.apiWalletAddress || '',
+        apiWalletKey: config.api?.apiWalletKey || '',
       },
       // Ensure symbols exist with at least one default symbol if empty
       symbols: config.symbols && Object.keys(config.symbols).length > 0 
@@ -139,16 +142,22 @@ export function OnboardingModal() {
     nextStep();
   };
 
-  const handleApiKeyNext = async (apiKey: string, secretKey: string) => {
+  const handleApiKeyNext = async (apiKey: string, secretKey: string, walletAddress?: string, apiWalletAddress?: string, apiWalletKey?: string) => {
     setApiKeys({ apiKey, secretKey });
-    const paperMode = !apiKey && !secretKey;
+    const paperMode = !apiKey && !secretKey && !apiWalletAddress && !apiWalletKey;
     setIsPaperMode(paperMode);
 
     // Update config with API keys
     if (config) {
       const updatedConfig: Config = {
         ...config,
-        api: { apiKey, secretKey },
+        api: {
+          apiKey,
+          secretKey,
+          walletAddress: config.api?.walletAddress || '',
+          apiWalletAddress: config.api?.apiWalletAddress || '',
+          apiWalletKey: config.api?.apiWalletKey || '',
+        },
         global: {
           ...config.global,
           paperMode,
@@ -285,7 +294,7 @@ export function OnboardingModal() {
       case 4:
         return <DashboardTourStep onNext={handleDashboardTourNext} onBack={previousStep} onStartTour={handleStartTour} />;
       case 5:
-        return <CompletionStep onComplete={handleComplete} isPaperMode={isPaperMode} hasApiKeys={!!apiKeys.apiKey} />;
+        return <CompletionStep onComplete={handleComplete} isPaperMode={isPaperMode} hasApiKeys={!!(apiKeys.apiKey || config?.api?.apiWalletAddress)} />;
       default:
         return null;
     }

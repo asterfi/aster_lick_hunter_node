@@ -95,7 +95,9 @@ export class Hunter extends EventEmitter {
 logWithTimestamp(`Hunter: Paper mode changed to ${newConfig.global.paperMode}`);
 
       // If switching from paper mode to live mode, restart WebSocket connection
-      if (oldConfig.global.paperMode && !newConfig.global.paperMode && newConfig.api.apiKey) {
+      const newHasV1 = !!(newConfig.api.apiKey && newConfig.api.secretKey);
+      const newHasV3 = !!(newConfig.api.apiWalletAddress && newConfig.api.apiWalletKey);
+      if (oldConfig.global.paperMode && !newConfig.global.paperMode && (newHasV1 || newHasV3)) {
 logWithTimestamp('Hunter: Switching from paper mode to live mode');
         if (this.ws) {
           this.ws.close();
@@ -106,7 +108,7 @@ logWithTimestamp('Hunter: Switching from paper mode to live mode');
         }
       }
       // If switching from live mode to paper mode without API keys
-      else if (!oldConfig.global.paperMode && newConfig.global.paperMode && !newConfig.api.apiKey) {
+      else if (!oldConfig.global.paperMode && newConfig.global.paperMode && !(newHasV1 || newHasV3)) {
 logWithTimestamp('Hunter: Switching from live mode to paper mode');
         if (this.ws) {
           this.ws.close();
@@ -250,7 +252,9 @@ logWithTimestamp('Hunter: Stopped periodic cleanup of stale pending orders');
 
   // Synchronize position mode with the exchange
   public async syncPositionMode(): Promise<void> {
-    if (!this.config.api.apiKey || !this.config.api.secretKey) {
+    const hasV1 = !!(this.config.api.apiKey && this.config.api.secretKey);
+    const hasV3 = !!(this.config.api.apiWalletAddress && this.config.api.apiWalletKey);
+    if (!hasV1 && !hasV3) {
 logWithTimestamp('Hunter: Skipping position mode sync - no API keys configured');
       return;
     }
@@ -334,8 +338,10 @@ logErrorWithTimestamp('Hunter: Failed to initialize symbol precision manager:', 
       // Continue anyway, will use default precision values
     }
 
+    const startHasV1 = !!(this.config.api.apiKey && this.config.api.secretKey);
+    const startHasV3 = !!(this.config.api.apiWalletAddress && this.config.api.apiWalletKey);
     // In paper mode with no API keys, simulate liquidation events
-    if (this.config.global.paperMode && (!this.config.api.apiKey || !this.config.api.secretKey)) {
+    if (this.config.global.paperMode && !startHasV1 && !startHasV3) {
 logWithTimestamp('Hunter: Running in paper mode without API keys - simulating liquidations');
       this.simulateLiquidations();
     } else {

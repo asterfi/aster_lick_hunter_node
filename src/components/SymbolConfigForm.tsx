@@ -38,7 +38,7 @@ export default function SymbolConfigForm({ onSave, currentConfig }: SymbolConfig
     if (currentConfig) {
       // Ensure api object exists
       if (!currentConfig.api) {
-        currentConfig.api = { apiKey: '', secretKey: '' };
+        currentConfig.api = { apiKey: '', secretKey: '', walletAddress: '', apiWalletAddress: '', apiWalletKey: '' };
       }
       
       // Ensure global object exists with all required fields
@@ -82,7 +82,10 @@ export default function SymbolConfigForm({ onSave, currentConfig }: SymbolConfig
     return {
       api: {
         apiKey: '',
-        secretKey: ''
+        secretKey: '',
+        walletAddress: '',
+        apiWalletAddress: '',
+        apiWalletKey: '',
       },
       global: {
         riskPercent: 2,
@@ -411,7 +414,61 @@ export default function SymbolConfigForm({ onSave, currentConfig }: SymbolConfig
                 </p>
               </div>
 
-              {!config.api.apiKey && !config.api.secretKey && (
+              <div className="border-t pt-4 mt-4">
+                <p className="text-sm font-medium mb-3 text-muted-foreground">
+                  V3 Wallet Credentials (EIP-712 / wallet-based auth)
+                </p>
+                <div className="space-y-3">
+                  <div className="space-y-2">
+                    <Label htmlFor="walletAddress">Wallet Address (optional)</Label>
+                    <Input
+                      id="walletAddress"
+                      type="text"
+                      value={config.api?.walletAddress || ''}
+                      onChange={(e) => handleApiChange('walletAddress', e.target.value)}
+                      placeholder="Enter your wallet address"
+                      className="font-mono"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Main account wallet address
+                    </p>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="apiWalletAddress">API Wallet Address (optional)</Label>
+                    <Input
+                      id="apiWalletAddress"
+                      type="text"
+                      value={config.api?.apiWalletAddress || ''}
+                      onChange={(e) => handleApiChange('apiWalletAddress', e.target.value)}
+                      placeholder="Enter your API wallet address"
+                      className="font-mono"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      API wallet address used for signing (signer)
+                    </p>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="apiWalletKey">API Wallet Key (optional)</Label>
+                    <div className="relative">
+                      <Input
+                        id="apiWalletKey"
+                        type={showApiSecret ? 'text' : 'password'}
+                        value={config.api?.apiWalletKey || ''}
+                        onChange={(e) => handleApiChange('apiWalletKey', e.target.value)}
+                        placeholder="Enter your API wallet private key"
+                        className="font-mono pr-10"
+                      />
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      API wallet private key for EIP-712 signing
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {!config.api.apiKey && !config.api.secretKey && !config.api.apiWalletAddress && !config.api.apiWalletKey && (
                 <div className="rounded-lg bg-muted p-4">
                   <p className="text-sm text-muted-foreground flex items-center gap-2">
                     <AlertCircle className="h-4 w-4" />

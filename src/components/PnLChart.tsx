@@ -100,8 +100,10 @@ export default function PnLChart() {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [loadingProgress, setLoadingProgress] = useState(0);
 
-  // Check if API keys are configured
-  const hasApiKeys = config?.api?.apiKey && config?.api?.secretKey;
+  // Check if API keys are configured (V1 or V3)
+  const hasV1 = config?.api?.apiKey && config?.api?.secretKey;
+  const hasV3 = config?.api?.apiWalletAddress && config?.api?.apiWalletKey;
+  const hasApiKeys = !!(hasV1 || hasV3);
 
   // Animate loading progress
   useEffect(() => {

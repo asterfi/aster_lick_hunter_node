@@ -7,8 +7,10 @@ export const GET = withAuth(async (request: NextRequest, _user) => {
   try {
     const config = await loadConfig();
 
-    // If no API key is configured, return empty orders
-    if (!config.api.apiKey || !config.api.secretKey) {
+    const hasV1 = config.api.apiKey && config.api.secretKey;
+    const hasV3 = config.api.apiWalletAddress && config.api.apiWalletKey;
+    // If no API credentials are configured, return empty orders
+    if (!hasV1 && !hasV3) {
       return NextResponse.json([]);
     }
 

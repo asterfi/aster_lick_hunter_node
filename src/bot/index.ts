@@ -161,9 +161,12 @@ logErrorWithTimestamp('❌ Config error:', error.message);
         this.statusBroadcaster.addError(`Config: ${error.message}`);
       });
 
-      // Check API keys
-      const hasValidApiKeys = this.config.api.apiKey && this.config.api.secretKey &&
-                              this.config.api.apiKey.length > 0 && this.config.api.secretKey.length > 0;
+      // Check API keys (supports both V1 apiKey/secretKey and V3 wallet-based credentials)
+      const hasV1 = this.config.api.apiKey && this.config.api.secretKey &&
+                    this.config.api.apiKey.length > 0 && this.config.api.secretKey.length > 0;
+      const hasV3 = this.config.api.apiWalletAddress && this.config.api.apiWalletKey &&
+                    this.config.api.apiWalletAddress.length > 0 && this.config.api.apiWalletKey.length > 0;
+      const hasValidApiKeys = hasV1 || hasV3;
 
       if (!hasValidApiKeys) {
 logWithTimestamp('⚠️  WARNING: No API keys configured. Running in PAPER MODE only.');

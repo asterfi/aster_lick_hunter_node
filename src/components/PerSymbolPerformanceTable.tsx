@@ -47,7 +47,9 @@ export default function PerSymbolPerformanceTable({ timeRange }: PerSymbolPerfor
   const [sortColumn, setSortColumn] = useState<SortColumn>('pnl');
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
 
-  const hasApiKeys = config?.api?.apiKey && config?.api?.secretKey;
+  const hasV1 = config?.api?.apiKey && config?.api?.secretKey;
+  const hasV3 = config?.api?.apiWalletAddress && config?.api?.apiWalletKey;
+  const hasApiKeys = !!(hasV1 || hasV3);
 
   const fetchData = useCallback(async (isRefresh = false) => {
     if (isRefresh) {

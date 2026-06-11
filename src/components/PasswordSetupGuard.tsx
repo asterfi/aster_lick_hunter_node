@@ -68,7 +68,7 @@ export function PasswordSetupGuard({ children }: PasswordSetupGuardProps) {
     try {
       // Update config with new password
       await updateConfig({
-        api: config?.api || { apiKey: '', secretKey: '' },
+        api: config?.api || { apiKey: '', secretKey: '', walletAddress: '', apiWalletAddress: '', apiWalletKey: '' },
         symbols: config?.symbols || {},
         global: {
           riskPercent: config?.global?.riskPercent || 2,

@@ -14,7 +14,9 @@ export const GET = withAuth(async (request: Request, _user) => {
       config = await configLoader.loadConfig();
     }
 
-    if (!config.api || !config.api.apiKey || !config.api.secretKey) {
+    const hasV1 = config.api?.apiKey && config.api?.secretKey;
+    const hasV3 = config.api?.apiWalletAddress && config.api?.apiWalletKey;
+    if (!hasV1 && !hasV3) {
       return NextResponse.json(
         { error: 'API credentials not configured' },
         { status: 500 }

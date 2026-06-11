@@ -6,6 +6,9 @@ export const DEFAULT_CONFIG: Config = {
   api: {
     apiKey: '',
     secretKey: '',
+    walletAddress: '',
+    apiWalletAddress: '',
+    apiWalletKey: '',
   },
   symbols: {
     BTCUSDT: {

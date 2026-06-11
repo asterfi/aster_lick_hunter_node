@@ -132,6 +132,9 @@ export class ConfigLoader {
       api: {
         apiKey: '',
         secretKey: '',
+        walletAddress: '',
+        apiWalletAddress: '',
+        apiWalletKey: '',
       },
     };
 

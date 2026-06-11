@@ -20,7 +20,10 @@ export default function ConfigPage() {
     try {
       const hasApiKeyChanges = config && (
         newConfig.api.apiKey !== config.api.apiKey ||
-        newConfig.api.secretKey !== config.api.secretKey
+        newConfig.api.secretKey !== config.api.secretKey ||
+        newConfig.api.walletAddress !== config.api.walletAddress ||
+        newConfig.api.apiWalletAddress !== config.api.apiWalletAddress ||
+        newConfig.api.apiWalletKey !== config.api.apiWalletKey
       );
 
       await updateConfig(newConfig);

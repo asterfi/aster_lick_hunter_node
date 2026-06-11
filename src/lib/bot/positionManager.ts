@@ -133,7 +133,9 @@ logWithTimestamp(`PositionManager: Note: Existing SL/TP orders for ${symbol} rem
 logWithTimestamp(`PositionManager: Paper mode changed to ${newConfig.global.paperMode}`);
 
       // If switching modes with active connection, restart the connection
-      if (this.isRunning && newConfig.api.apiKey && newConfig.api.secretKey) {
+      const restartHasV1 = !!(newConfig.api.apiKey && newConfig.api.secretKey);
+      const restartHasV3 = !!(newConfig.api.apiWalletAddress && newConfig.api.apiWalletKey);
+      if (this.isRunning && (restartHasV1 || restartHasV3)) {
 logWithTimestamp('PositionManager: Restarting connection due to mode change...');
         this.restartConnection();
       }
@@ -186,7 +188,9 @@ logErrorWithTimestamp('PositionManager: Failed to fetch exchange info:', error.m
     }
 
     // Skip user data stream in paper mode with no API keys
-    if (this.config.global.paperMode && (!this.config.api.apiKey || '' || !this.config.api.secretKey)) {
+    const hasV1 = !!(this.config.api.apiKey && this.config.api.secretKey);
+    const hasV3 = !!(this.config.api.apiWalletAddress && this.config.api.apiWalletKey);
+    if (this.config.global.paperMode && !hasV1 && !hasV3) {
 logWithTimestamp('PositionManager: Running in paper mode without API keys - simulating streams');
       return;
     }

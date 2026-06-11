@@ -50,7 +50,10 @@ export async function POST(request: Request) {
       // Ensure API keys are empty strings in paper mode
       body.api = {
         apiKey: body.api?.apiKey || '',
-        secretKey: body.api?.secretKey || ''
+        secretKey: body.api?.secretKey || '',
+        walletAddress: body.api?.walletAddress || '',
+        apiWalletAddress: body.api?.apiWalletAddress || '',
+        apiWalletKey: body.api?.apiWalletKey || '',
       };
     }
 

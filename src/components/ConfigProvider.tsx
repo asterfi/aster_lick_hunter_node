@@ -30,7 +30,7 @@ export default function ConfigProvider({ children }: { children: React.ReactNode
   const isLoginPage = pathname === '/login';
 
   const createDefaultConfig = (): Config => ({
-    api: { apiKey: '', secretKey: '' },
+    api: { apiKey: '', secretKey: '', walletAddress: '', apiWalletAddress: '', apiWalletKey: '' },
     symbols: {},
     global: {
       riskPercent: 90,

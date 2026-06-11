@@ -48,8 +48,10 @@ export async function GET(request: NextRequest) {
     // Determine which symbol to fetch - use provided symbol or first configured symbol
     const fetchSymbol = symbol || (configuredSymbols.length > 0 ? configuredSymbols[0] : 'BTCUSDT');
 
-    // If no API key is configured, return empty array
-    if (!config.api.apiKey || !config.api.secretKey) {
+    const hasV1 = config.api.apiKey && config.api.secretKey;
+    const hasV3 = config.api.apiWalletAddress && config.api.apiWalletKey;
+    // If no API credentials are configured, return empty array
+    if (!hasV1 && !hasV3) {
       return NextResponse.json([]);
     }
 
