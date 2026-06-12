@@ -36,8 +36,10 @@ export class BalanceService extends EventEmitter {
   async initialize(credentials: ApiCredentials): Promise<void> {
 
     // Validate credentials
-    if (!credentials.apiKey || !credentials.secretKey) {
-      throw new Error('Invalid credentials: API key and secret key are required');
+    const hasV1 = credentials.apiKey && credentials.secretKey;
+    const hasV3 = (credentials as any).apiWalletAddress && (credentials as any).apiWalletKey;
+    if (!hasV1 && !hasV3) {
+      throw new Error('Invalid credentials: API keys (V1) or wallet credentials (V3) are required');
     }
 
     this.credentials = credentials;
