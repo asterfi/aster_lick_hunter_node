@@ -77,13 +77,14 @@ export default function ConfigPage() {
           };
         } else {
           // Create new config entry from recommendations (mirrors autoCoinsService.applyToConfig)
+          const tradeMargin = coin.recommendedTradeSize || 10;
           newSymbols[coin.symbol] = {
             longVolumeThresholdUSDT: coin.recommendedThreshold,
             shortVolumeThresholdUSDT: coin.recommendedThreshold,
-            tradeSize: 0.001,
-            longTradeSize: 10,
-            shortTradeSize: 10,
-            maxPositionMarginUSDT: 200,
+            tradeSize: tradeMargin,
+            longTradeSize: tradeMargin,
+            shortTradeSize: tradeMargin,
+            maxPositionMarginUSDT: Math.max(tradeMargin * 5, 200),
             leverage: coin.recommendedLeverage,
             tpPercent: coin.recommendedTP,
             slPercent: coin.recommendedSL,

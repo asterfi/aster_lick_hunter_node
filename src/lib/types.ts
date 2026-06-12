@@ -223,6 +223,7 @@ export interface AutoCoinSymbol {
   recommendedSL: number;
   recommendedTP: number;
   recommendedLeverage: number;
-  recommendedThreshold: number; // thresholdUSDT = volume24h / 1440 * 2
-  blacklisted?: boolean;   // true if auto-blacklisted due to volatility
+  recommendedThreshold: number;   // thresholdUSDT = volume24h / 1440 * 2
+  recommendedTradeSize: number;   // margin in USDT (min $5, respects exchange min notional)
+  blacklisted?: boolean;          // true if auto-blacklisted due to volatility
 }

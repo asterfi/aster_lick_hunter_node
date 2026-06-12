@@ -153,6 +153,10 @@ class AutoCoinsService extends EventEmitter {
         if (price < config.minPrice) continue;
         if (config.maxPrice !== undefined && price > config.maxPrice) continue;
 
+        // Extract exchange min notional for trade size calculation
+        const minNotionalFilter = sym.filters?.find(f => f.filterType === 'MIN_NOTIONAL');
+        const minNotional = parseFloat(minNotionalFilter?.notional || '5');
+
         results.push({
           symbol: sym.symbol,
           price,
@@ -162,9 +166,11 @@ class AutoCoinsService extends EventEmitter {
           recommendedSL: 0,
           recommendedTP: 0,
           recommendedLeverage: 0,
-          recommendedThreshold: volume24h / 1440 * 2, // default threshold calc
+          recommendedThreshold: volume24h / 1440 * 2,
+          recommendedTradeSize: Math.max(5, Math.ceil(minNotional * 1.3)),
           blacklisted: false,
-        });
+          _minNotional: minNotional,
+        } as any);
       }
 
       // 4. Volatility check (if enabled)
@@ -223,13 +229,14 @@ class AutoCoinsService extends EventEmitter {
         };
       } else {
         // Create new config entry from recommendations with all smart defaults
+        const tradeMargin = coin.recommendedTradeSize || 10;
         newSymbols[coin.symbol] = {
           longVolumeThresholdUSDT: coin.recommendedThreshold,
           shortVolumeThresholdUSDT: coin.recommendedThreshold,
-          tradeSize: 0.001,
-          longTradeSize: 10,
-          shortTradeSize: 10,
-          maxPositionMarginUSDT: 200,
+          tradeSize: tradeMargin,
+          longTradeSize: tradeMargin,
+          shortTradeSize: tradeMargin,
+          maxPositionMarginUSDT: Math.max(tradeMargin * 5, 200),
           leverage: coin.recommendedLeverage,
           tpPercent: coin.recommendedTP,
           slPercent: coin.recommendedSL,
@@ -422,6 +429,11 @@ class AutoCoinsService extends EventEmitter {
             coin.recommendedLeverage = Math.max(1, Math.min(Math.floor(2 / (atrPercent || 0.01)), 10));
             coin.recommendedThreshold = parseFloat((coin.volume24h / 1440 * 2).toFixed(2));
             coin.blacklisted = exceeded;
+
+            // Trade size: respect exchange minimum notional with 30% buffer
+            const minNotional = (coin as any)._minNotional ?? 5;
+            const minMargin = Math.ceil((minNotional / coin.recommendedLeverage) * 1.3);
+            coin.recommendedTradeSize = Math.max(5, minMargin);
 
             return coin;
           } catch (error) {
