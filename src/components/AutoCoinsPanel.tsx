@@ -108,6 +108,8 @@ export default function AutoCoinsPanel({
   const [minVolInput, setMinVolInput] = useState(acConfig.minVolume24h / 1_000_000);
   const [maxSymbolsInput, setMaxSymbolsInput] = useState(acConfig.maxSymbols);
   const [volThresholdInput, setVolThresholdInput] = useState(acConfig.volatilityThreshold);
+  const [volLengthInput, setVolLengthInput] = useState(acConfig.volatilityLength);
+  const [volTfInput, setVolTfInput] = useState(acConfig.volatilityTimeframe);
 
   // -----------------------------------------------------------------------
   // Refresh
@@ -229,6 +231,14 @@ export default function AutoCoinsPanel({
     onUpdateConfig('global.autoCoins.volatilityThreshold', Math.max(0.5, Math.min(20, volThresholdInput)));
   }, [onUpdateConfig, volThresholdInput]);
 
+  const saveVolLength = useCallback(() => {
+    onUpdateConfig('global.autoCoins.volatilityLength', Math.max(1, Math.min(200, volLengthInput)));
+  }, [onUpdateConfig, volLengthInput]);
+
+  const saveVolTf = useCallback(() => {
+    onUpdateConfig('global.autoCoins.volatilityTimeframe', volTfInput);
+  }, [onUpdateConfig, volTfInput]);
+
   const toggleVolatility = useCallback(
     (checked: boolean) => {
       onUpdateConfig('global.autoCoins.volatilityEnabled', checked);
@@ -295,30 +305,63 @@ export default function AutoCoinsPanel({
               <p className="text-xs text-muted-foreground">Current: {acConfig.maxSymbols} pairs</p>
             </div>
 
-            {/* Volatility Threshold */}
-            <div className="space-y-2">
+            {/* Volatility Filter */}
+            <div className="space-y-3">
               <div className="flex items-center justify-between">
-                <Label htmlFor="ac-vol-pct">Max Candle Move %</Label>
+                <Label>Volatility Filter</Label>
                 <Switch
                   checked={acConfig.volatilityEnabled}
                   onCheckedChange={toggleVolatility}
                   aria-label="Toggle volatility filter"
                 />
               </div>
-              <Input
-                id="ac-vol-pct"
-                type="number"
-                min={0.5}
-                max={20}
-                step={0.5}
-                value={volThresholdInput}
-                onChange={(e) => setVolThresholdInput(Number(e.target.value))}
-                onBlur={saveVolThreshold}
-                disabled={!acConfig.volatilityEnabled}
-              />
+              {acConfig.volatilityEnabled && (
+                <div className="grid grid-cols-3 gap-2">
+                  <div className="space-y-1">
+                    <Label htmlFor="ac-vol-len" className="text-xs">Candles</Label>
+                    <Input
+                      id="ac-vol-len"
+                      type="number"
+                      min={1}
+                      max={200}
+                      step={1}
+                      value={volLengthInput}
+                      onChange={(e) => setVolLengthInput(Number(e.target.value))}
+                      onBlur={saveVolLength}
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label htmlFor="ac-vol-pct" className="text-xs">Max Move %</Label>
+                    <Input
+                      id="ac-vol-pct"
+                      type="number"
+                      min={0.5}
+                      max={20}
+                      step={0.5}
+                      value={volThresholdInput}
+                      onChange={(e) => setVolThresholdInput(Number(e.target.value))}
+                      onBlur={saveVolThreshold}
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label htmlFor="ac-vol-tf" className="text-xs">Timeframe</Label>
+                    <Input
+                      id="ac-vol-tf"
+                      type="text"
+                      value={volTfInput}
+                      onChange={(e) => setVolTfInput(e.target.value)}
+                      onBlur={saveVolTf}
+                      placeholder="5m"
+                    />
+                  </div>
+                </div>
+              )}
               <p className="text-xs text-muted-foreground">
-                Current: {acConfig.volatilityThreshold}% ({acConfig.volatilityLength} candles, {acConfig.volatilityTimeframe})
+                Blacklists pairs where any of the last {acConfig.volatilityLength} {acConfig.volatilityTimeframe} candles moved more than {acConfig.volatilityThreshold}%
               </p>
+              {!acConfig.volatilityEnabled && (
+                <p className="text-xs text-muted-foreground">Volatility filtering disabled</p>
+              )}
             </div>
           </div>
 

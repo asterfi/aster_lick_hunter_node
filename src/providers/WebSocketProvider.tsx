@@ -30,38 +30,30 @@ function buildWsUrl(host: string, port: number): string {
 }
 
 export function WebSocketProvider({ children }: { children: React.ReactNode }) {
+  const [wsHost, setWsHost] = useState('');
   const [wsPort, setWsPort] = useState(8080);
-  const [wsHost, setWsHost] = useState(
-    typeof window !== 'undefined' ? window.location.hostname : 'localhost',
-  );
 
   useEffect(() => {
     // Use the same /api/config that ConfigProvider already loads.
-    // This runs once; subsequent navigations reuse the cached provider state.
     fetch('/api/config')
       .then((res) => res.json())
       .then((data) => {
         const port = data.global?.server?.websocketPort || 8080;
         const remoteHost = data.global?.server?.websocketHost;
-        const host = remoteHost || (typeof window !== 'undefined' ? window.location.hostname : 'localhost');
+        const useRemote = data.global?.server?.useRemoteWebSocket;
+        const host = remoteHost || (useRemote && typeof window !== 'undefined' ? window.location.hostname : 'localhost');
 
         setWsPort(port);
         setWsHost(host);
 
         const url = buildWsUrl(host, port);
         websocketService.setUrl(url);
-
-        // Lightweight connection check — don't block rendering
-        websocketService.testConnection().then((ok) => {
-          if (ok) console.log('[WS] Bot reachable at', url);
-        });
       })
       .catch(() => {
-        // Fallback: use current hostname + default port
-        const host = typeof window !== 'undefined' ? window.location.hostname : 'localhost';
-        const url = buildWsUrl(host, 8080);
+        // Fallback: localhost + default port
+        const host = 'localhost';
         setWsHost(host);
-        websocketService.setUrl(url);
+        websocketService.setUrl(buildWsUrl(host, 8080));
       });
   }, []);
 
