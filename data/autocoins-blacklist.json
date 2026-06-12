@@ -1,0 +1,10 @@
+{
+  "entries": [
+    {
+      "symbol": "LABUSDT",
+      "reason": "Volatility exceeded: 4.68% > 4.5%",
+      "blacklistedAt": 1781239792294,
+      "durationMs": 1800000
+    }
+  ]
+}

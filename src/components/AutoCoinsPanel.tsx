@@ -4,7 +4,7 @@ import React, { useState, useCallback } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
-import { Slider } from '@/components/ui/slider';
+import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -104,6 +104,10 @@ export default function AutoCoinsPanel({
   const [localBlacklist, setLocalBlacklist] = useState<string[]>(
     acConfig.blacklistedSymbols ?? [],
   );
+  // Local state for inputs — only saved to config on blur, not on every keystroke
+  const [minVolInput, setMinVolInput] = useState(acConfig.minVolume24h / 1_000_000);
+  const [maxSymbolsInput, setMaxSymbolsInput] = useState(acConfig.maxSymbols);
+  const [volThresholdInput, setVolThresholdInput] = useState(acConfig.volatilityThreshold);
 
   // -----------------------------------------------------------------------
   // Refresh
@@ -213,30 +217,21 @@ export default function AutoCoinsPanel({
     [onUpdateConfig],
   );
 
-  const updateMinVolume = useCallback(
-    (value: number[]) => {
-      onUpdateConfig('global.autoCoins.minVolume24h', value[0] * 1_000_000);
-    },
-    [onUpdateConfig],
-  );
+  const saveMinVolume = useCallback(() => {
+    onUpdateConfig('global.autoCoins.minVolume24h', Math.max(1, Math.min(100, minVolInput)) * 1_000_000);
+  }, [onUpdateConfig, minVolInput]);
 
-  const updateVolatilityToggle = useCallback(
+  const saveMaxSymbols = useCallback(() => {
+    onUpdateConfig('global.autoCoins.maxSymbols', Math.max(5, Math.min(50, maxSymbolsInput)));
+  }, [onUpdateConfig, maxSymbolsInput]);
+
+  const saveVolThreshold = useCallback(() => {
+    onUpdateConfig('global.autoCoins.volatilityThreshold', Math.max(0.5, Math.min(20, volThresholdInput)));
+  }, [onUpdateConfig, volThresholdInput]);
+
+  const toggleVolatility = useCallback(
     (checked: boolean) => {
       onUpdateConfig('global.autoCoins.volatilityEnabled', checked);
-    },
-    [onUpdateConfig],
-  );
-
-  const updateVolatilityThreshold = useCallback(
-    (value: number[]) => {
-      onUpdateConfig('global.autoCoins.volatilityThreshold', value[0]);
-    },
-    [onUpdateConfig],
-  );
-
-  const updateMaxSymbols = useCallback(
-    (value: number[]) => {
-      onUpdateConfig('global.autoCoins.maxSymbols', value[0]);
     },
     [onUpdateConfig],
   );
@@ -271,58 +266,60 @@ export default function AutoCoinsPanel({
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {/* Min Volume */}
             <div className="space-y-2">
-              <Label>Min 24h Volume: ${formatVolume(acConfig.minVolume24h)}</Label>
-              <Slider
+              <Label htmlFor="ac-min-vol">Min 24h Volume ($M)</Label>
+              <Input
+                id="ac-min-vol"
+                type="number"
                 min={1}
                 max={100}
                 step={1}
-                value={[acConfig.minVolume24h / 1_000_000]}
-                onValueChange={updateMinVolume}
+                value={minVolInput}
+                onChange={(e) => setMinVolInput(Number(e.target.value))}
+                onBlur={saveMinVolume}
               />
-              <p className="text-xs text-muted-foreground">$1M - $100M</p>
+              <p className="text-xs text-muted-foreground">Current: ${formatVolume(acConfig.minVolume24h)}</p>
             </div>
 
             {/* Max Symbols */}
             <div className="space-y-2">
-              <Label>Max Symbols: {acConfig.maxSymbols}</Label>
-              <Slider
+              <Label htmlFor="ac-max-sym">Max Symbols</Label>
+              <Input
+                id="ac-max-sym"
+                type="number"
                 min={5}
                 max={50}
                 step={1}
-                value={[acConfig.maxSymbols]}
-                onValueChange={updateMaxSymbols}
+                value={maxSymbolsInput}
+                onChange={(e) => setMaxSymbolsInput(Number(e.target.value))}
+                onBlur={saveMaxSymbols}
               />
-              <p className="text-xs text-muted-foreground">5 - 50 pairs</p>
+              <p className="text-xs text-muted-foreground">Current: {acConfig.maxSymbols} pairs</p>
             </div>
 
             {/* Volatility Threshold */}
             <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <Label>Volatility Filter</Label>
+                <Label htmlFor="ac-vol-pct">Max Candle Move %</Label>
                 <Switch
                   checked={acConfig.volatilityEnabled}
-                  onCheckedChange={updateVolatilityToggle}
+                  onCheckedChange={toggleVolatility}
                   aria-label="Toggle volatility filter"
                 />
               </div>
-              {acConfig.volatilityEnabled && (
-                <>
-                  <Slider
-                    min={1}
-                    max={20}
-                    step={0.5}
-                    value={[acConfig.volatilityThreshold]}
-                    onValueChange={updateVolatilityThreshold}
-                    disabled={!acConfig.volatilityEnabled}
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    Max candle move: {acConfig.volatilityThreshold}% ({acConfig.volatilityLength} candles, {acConfig.volatilityTimeframe})
-                  </p>
-                </>
-              )}
-              {!acConfig.volatilityEnabled && (
-                <p className="text-xs text-muted-foreground">Volatility filtering disabled</p>
-              )}
+              <Input
+                id="ac-vol-pct"
+                type="number"
+                min={0.5}
+                max={20}
+                step={0.5}
+                value={volThresholdInput}
+                onChange={(e) => setVolThresholdInput(Number(e.target.value))}
+                onBlur={saveVolThreshold}
+                disabled={!acConfig.volatilityEnabled}
+              />
+              <p className="text-xs text-muted-foreground">
+                Current: {acConfig.volatilityThreshold}% ({acConfig.volatilityLength} candles, {acConfig.volatilityTimeframe})
+              </p>
             </div>
           </div>
 
