@@ -114,17 +114,22 @@ export class StatusBroadcaster extends EventEmitter {
         ws.on('ping', () => ws.pong());
       });
 
-      // Update uptime every second and rate limits every 2 seconds
+      // Update uptime and broadcast status every 5 seconds (was 1s — too much UI lag)
+      // Rate limits checked every 10 seconds
       let counter = 0;
       this.uptimeInterval = setInterval(() => {
         if (this.status.isRunning && this.status.startTime) {
           this.status.uptime = Date.now() - this.status.startTime.getTime();
+        }
+
+        counter++;
+        // Broadcast full status every 5 ticks (5 seconds)
+        if (counter % 5 === 0) {
           this._broadcast('status', this.status);
         }
 
-        // Update rate limits every 2 seconds
-        counter++;
-        if (counter % 2 === 0) {
+        // Update rate limits every 10 ticks (10 seconds)
+        if (counter % 10 === 0) {
           this.updateRateLimit();
         }
       }, 1000);
