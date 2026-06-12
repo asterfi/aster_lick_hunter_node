@@ -345,14 +345,20 @@ export default function AutoCoinsPanel({
                   </div>
                   <div className="space-y-1">
                     <Label htmlFor="ac-vol-tf" className="text-xs">Timeframe</Label>
-                    <Input
+                    <select
                       id="ac-vol-tf"
-                      type="text"
+                      className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
                       value={volTfInput}
-                      onChange={(e) => setVolTfInput(e.target.value)}
-                      onBlur={saveVolTf}
-                      placeholder="5m"
-                    />
+                      onChange={(e) => { setVolTfInput(e.target.value); saveVolTf(); }}
+                    >
+                      <option value="1m">1m</option>
+                      <option value="3m">3m</option>
+                      <option value="5m">5m</option>
+                      <option value="15m">15m</option>
+                      <option value="30m">30m</option>
+                      <option value="1h">1h</option>
+                      <option value="4h">4h</option>
+                    </select>
                   </div>
                 </div>
               )}
