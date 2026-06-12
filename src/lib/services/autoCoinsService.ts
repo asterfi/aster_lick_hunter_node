@@ -418,7 +418,8 @@ class AutoCoinsService extends EventEmitter {
             coin.atrPercent = parseFloat(atrPercent.toFixed(2));
             coin.recommendedSL = parseFloat(Math.max(atrPercent * 1.5, 0.5).toFixed(2));
             coin.recommendedTP = parseFloat(Math.max(atrPercent * 3.0, 1.0).toFixed(2));
-            coin.recommendedLeverage = Math.max(1, Math.min(Math.floor(2 / (atrPercent / 100 || 0.01)), 10));
+            // Leverage = 2 / ATR%. 0.5% ATR → 4x. 2% ATR → 1x.
+            coin.recommendedLeverage = Math.max(1, Math.min(Math.floor(2 / (atrPercent || 0.01)), 10));
             coin.recommendedThreshold = parseFloat((coin.volume24h / 1440 * 2).toFixed(2));
             coin.blacklisted = exceeded;
 

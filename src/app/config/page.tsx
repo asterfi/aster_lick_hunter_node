@@ -66,16 +66,14 @@ export default function ConfigPage() {
         const existing = newSymbols[coin.symbol];
 
         if (existing) {
-          // Keep existing config but overlay auto-recommended values
+          // Force-apply auto-recommended values over existing config
           newSymbols[coin.symbol] = {
             ...existing,
-            longVolumeThresholdUSDT:
-              existing.longVolumeThresholdUSDT ?? coin.recommendedThreshold,
-            shortVolumeThresholdUSDT:
-              existing.shortVolumeThresholdUSDT ?? coin.recommendedThreshold,
-            slPercent: existing.slPercent ?? coin.recommendedSL,
-            tpPercent: existing.tpPercent ?? coin.recommendedTP,
-            leverage: existing.leverage ?? coin.recommendedLeverage,
+            longVolumeThresholdUSDT: coin.recommendedThreshold,
+            shortVolumeThresholdUSDT: coin.recommendedThreshold,
+            slPercent: coin.recommendedSL,
+            tpPercent: coin.recommendedTP,
+            leverage: coin.recommendedLeverage,
           };
         } else {
           // Create new config entry from recommendations (mirrors autoCoinsService.applyToConfig)
