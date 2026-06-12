@@ -153,9 +153,15 @@ class AutoCoinsService extends EventEmitter {
         if (price < config.minPrice) continue;
         if (config.maxPrice !== undefined && price > config.maxPrice) continue;
 
-        // Extract exchange min notional for trade size calculation
+        // Compute minimum notional from exchange filters
         const minNotionalFilter = sym.filters?.find(f => f.filterType === 'MIN_NOTIONAL');
-        const minNotional = parseFloat(minNotionalFilter?.notional || '5');
+        const notionalFromFilter = parseFloat(minNotionalFilter?.notional || '0') || 0;
+        // Fallback: compute from LOT_SIZE (minQty × price)
+        const lotFilter = sym.filters?.find(f => f.filterType === 'LOT_SIZE');
+        const minQty = parseFloat(lotFilter?.minQty || '0') || 0;
+        const notionalFromLot = minQty > 0 ? minQty * price : 0;
+        // Use whichever is higher, floor at $5
+        const minNotional = Math.max(notionalFromFilter, notionalFromLot, 5);
 
         results.push({
           symbol: sym.symbol,
