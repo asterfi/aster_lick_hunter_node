@@ -66,7 +66,8 @@ export default function ConfigPage() {
         const existing = newSymbols[coin.symbol];
 
         if (existing) {
-          // Force-apply auto-recommended values over existing config
+          // Force-apply all auto-recommended values over existing config
+          const tradeMargin = coin.recommendedTradeSize || 10;
           newSymbols[coin.symbol] = {
             ...existing,
             longVolumeThresholdUSDT: coin.recommendedThreshold,
@@ -74,6 +75,9 @@ export default function ConfigPage() {
             slPercent: coin.recommendedSL,
             tpPercent: coin.recommendedTP,
             leverage: coin.recommendedLeverage,
+            tradeSize: tradeMargin,
+            longTradeSize: tradeMargin,
+            shortTradeSize: tradeMargin,
           };
         } else {
           // Create new config entry from recommendations (mirrors autoCoinsService.applyToConfig)

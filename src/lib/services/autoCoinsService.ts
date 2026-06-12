@@ -219,13 +219,17 @@ class AutoCoinsService extends EventEmitter {
 
       if (existing) {
         // Keep existing config but overlay auto-recommended values
+        const tradeMargin = coin.recommendedTradeSize || 10;
         newSymbols[coin.symbol] = {
           ...existing,
-          longVolumeThresholdUSDT: existing.longVolumeThresholdUSDT ?? coin.recommendedThreshold,
-          shortVolumeThresholdUSDT: existing.shortVolumeThresholdUSDT ?? coin.recommendedThreshold,
-          slPercent: existing.slPercent ?? coin.recommendedSL,
-          tpPercent: existing.tpPercent ?? coin.recommendedTP,
-          leverage: existing.leverage ?? coin.recommendedLeverage,
+          longVolumeThresholdUSDT: coin.recommendedThreshold,
+          shortVolumeThresholdUSDT: coin.recommendedThreshold,
+          slPercent: coin.recommendedSL,
+          tpPercent: coin.recommendedTP,
+          leverage: coin.recommendedLeverage,
+          tradeSize: tradeMargin,
+          longTradeSize: tradeMargin,
+          shortTradeSize: tradeMargin,
         };
       } else {
         // Create new config entry from recommendations with all smart defaults

@@ -148,14 +148,20 @@ export default function AutoCoinsPanel({
   // -----------------------------------------------------------------------
 
   const handleApply = useCallback(async () => {
-    if (symbols.length === 0) return;
+    if (symbols.length === 0) {
+      toast.error('No symbols to apply — click "Refresh Symbols" first');
+      return;
+    }
 
     try {
-      onApplySymbols(symbols);
+      setLoading(true);
+      await onApplySymbols(symbols);
       setApplied(true);
-      toast.success(`Applied ${symbols.length} auto-selected symbols to config`);
+      toast.success(`Applied ${symbols.length} symbols — settings updated`);
     } catch (err: any) {
       toast.error(`Failed to apply symbols: ${err.message}`);
+    } finally {
+      setLoading(false);
     }
   }, [symbols, onApplySymbols]);
 
