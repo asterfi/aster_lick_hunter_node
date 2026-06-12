@@ -3,7 +3,6 @@
  *
  * Singleton service that auto-selects trading pairs from all available USDT
  * perpetual futures on AsterDEX, filtered by 24h volume and volatility criteria.
- * Inspired by WickHunter's AutoCoins feature.
  *
  * @notExportedAsIndex The singleton `autoCoinsService` is the intended consumer.
  */

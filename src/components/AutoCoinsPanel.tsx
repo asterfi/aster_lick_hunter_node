@@ -256,7 +256,6 @@ export default function AutoCoinsPanel({
         </div>
         <CardDescription>
           Automatically discover and select trading pairs based on volume and volatility filters.
-          Inspired by WickHunter AutoCoins.
         </CardDescription>
       </CardHeader>
 

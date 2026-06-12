@@ -51,11 +51,6 @@ const navigation = [
     href: "/config",
   },
   {
-    title: "Optimizer",
-    icon: Target,
-    href: "/optimizer",
-  },
-  {
     title: "Wiki & Help",
     icon: BookOpen,
     href: "/wiki",
