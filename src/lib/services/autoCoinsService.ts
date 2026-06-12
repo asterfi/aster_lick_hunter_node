@@ -173,7 +173,7 @@ class AutoCoinsService extends EventEmitter {
           recommendedTP: 0,
           recommendedLeverage: 0,
           recommendedThreshold: volume24h / 1440 * 2,
-          recommendedTradeSize: Math.max(5, Math.ceil(minNotional * 1.3)),
+          recommendedTradeSize: Math.ceil(minNotional * 1.3),
           blacklisted: false,
           _minNotional: minNotional,
         } as any);
@@ -440,10 +440,9 @@ class AutoCoinsService extends EventEmitter {
             coin.recommendedThreshold = parseFloat((coin.volume24h / 1440 * 2).toFixed(2));
             coin.blacklisted = exceeded;
 
-            // Trade size: respect exchange minimum notional with 30% buffer
-            const minNotional = (coin as any)._minNotional ?? 5;
-            const minMargin = Math.ceil((minNotional / coin.recommendedLeverage) * 1.3);
-            coin.recommendedTradeSize = Math.max(5, minMargin);
+            // Trade size: exchange minimum notional / leverage with 30% buffer
+            const minNotional = (coin as any)._minNotional || 5;
+            coin.recommendedTradeSize = Math.ceil((minNotional / coin.recommendedLeverage) * 1.3);
 
             return coin;
           } catch (error) {
