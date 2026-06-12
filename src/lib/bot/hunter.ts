@@ -700,6 +700,23 @@ logWithTimestamp(`Hunter: ✓ Cooldown passed - Triggering ${tradeSide} trade fo
       }
     }
 
+    // === Market Regime Gate ===
+    // Contrarian entries get crushed in strong trends — skip entirely.
+    // Adaptive params already computes regime from 1h klines.
+    if (symbolConfig.adaptiveParams?.enabled) {
+      const ad = adaptiveParamsService.getParams(symbol);
+      if (ad && ad.marketRegime === 'STRONGLY_TRENDING') {
+        return {
+          allowed: false,
+          reason: `Market Regime: STRONGLY_TRENDING (${(ad.regimeConfidence * 100).toFixed(0)}% confidence) — skipping contrarian entry`,
+          details: { regime: ad.marketRegime, confidence: ad.regimeConfidence },
+        };
+      }
+      if (ad && ad.marketRegime === 'TRENDING') {
+        logWithTimestamp(`Hunter: ⚠️ Market Regime: TRENDING — entry allowed but risk-adjusted by adaptive engine`);
+      }
+    }
+
     return { allowed: true, reason: 'All kill zone filters passed' };
   }
 
