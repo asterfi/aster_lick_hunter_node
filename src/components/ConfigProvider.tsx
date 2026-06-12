@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useState, useEffect, useContext, useCallback } from 'react';
+import React, { createContext, useState, useEffect, useContext, useCallback, useMemo } from 'react';
 import { usePathname } from 'next/navigation';
 import { Config } from '@/lib/types';
 import { OnboardingProvider } from './onboarding/OnboardingProvider';
@@ -160,15 +160,13 @@ export default function ConfigProvider({ children }: { children: React.ReactNode
     return () => window.removeEventListener('restart-tutorial', handleRestartTutorial);
   }, []);
 
+  const contextValue = useMemo(
+    () => ({ config, loading, updateConfig, reloadConfig: loadConfig }),
+    [config, loading, updateConfig, loadConfig],
+  );
+
   return (
-    <ConfigContext.Provider
-      value={{
-        config,
-        loading,
-        updateConfig,
-        reloadConfig: loadConfig,
-      }}
-    >
+    <ConfigContext.Provider value={contextValue}>
       {isLoginPage ? (
         children
       ) : (

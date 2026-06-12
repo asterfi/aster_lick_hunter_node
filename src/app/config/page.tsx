@@ -1,9 +1,8 @@
 'use client';
 
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, Suspense } from 'react';
+import dynamic from 'next/dynamic';
 import { DashboardLayout } from '@/components/dashboard-layout';
-import SymbolConfigForm from '@/components/SymbolConfigForm';
-import AutoCoinsPanel from '@/components/AutoCoinsPanel';
 import { useConfig } from '@/components/ConfigProvider';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -12,6 +11,14 @@ import { AlertCircle, CheckCircle2, Settings } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { toast } from 'sonner';
 import type { AutoCoinSymbol } from '@/lib/types';
+
+// Lazy-load heavy components — they load in separate JS bundles
+const SymbolConfigForm = dynamic(() => import('@/components/SymbolConfigForm'), {
+  loading: () => <Skeleton className="h-96 w-full" />,
+});
+const AutoCoinsPanel = dynamic(() => import('@/components/AutoCoinsPanel'), {
+  loading: () => <Skeleton className="h-64 w-full" />,
+});
 
 export default function ConfigPage() {
   const { config, loading, updateConfig } = useConfig();
